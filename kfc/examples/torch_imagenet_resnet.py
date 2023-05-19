@@ -54,7 +54,7 @@ def parse_args():
                         help='number of batches processed locally before '
                              'executing allreduce across workers; it multiplies '
                              'total batch size.')
-    parser.add_argument('--epochs', type=int, default=55,
+    parser.add_argument('--epochs', type=int, default=2,
                         help='number of epochs to train (default: 55)')
     parser.add_argument('--base-lr', type=float, default=0.0125,
                         help='learning rate for a single GPU (default: 0.0125)')
