@@ -25,7 +25,7 @@ from datetime import datetime
 
 
 
-root=Path("/scratch1/99999/malb23/ASC22050/SR_Dataset_v1")
+root=Path("/scratch1/99999/malb23/ASC22050/SR_Dataset_v1/cresis-data")
 
 tag = datetime.now().strftime("%y%m%d-%H%M%S")
 
