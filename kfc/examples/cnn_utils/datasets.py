@@ -1,11 +1,12 @@
 import os
 import kfac
+import sys
 import torch
 import torch.distributed as dist
 from torch.utils import data as D
 from os.path import join, splitext, basename #,split, abspath, splitext, split, isdir, isfile
 import numpy as np
-from transforms import Fliplr, Rescale_byrate
+from cnn_utils.transforms import Fliplr, Rescale_byrate
 from torch.utils.data import DataLoader, ConcatDataset
 import cv2
 import os

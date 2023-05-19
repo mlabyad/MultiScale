@@ -2,11 +2,10 @@ import math
 import sys
 import torch
 from tqdm import tqdm
-from modules.utils import Averagvalue
-from modules.functions import   cross_entropy_loss
+from cnn_utils.functions import   cross_entropy_loss
 
 sys.path.append('..')
-from utils import Metric, accuracy
+from utils import Metric, accuracy, Averagvalue
 
 def train(epoch,
           model,
