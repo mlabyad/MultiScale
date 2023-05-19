@@ -3,18 +3,18 @@ import time
 import os
 import sys
 import datetime
+import warnings
 import kfac
 import torch
 import torch.distributed as dist
 
-import cnn_utils.cifar_resnet as models
+import torchvision.models as models
 import cnn_utils.datasets as datasets
 import cnn_utils.engine as engine
 import cnn_utils.optimizers as optimizers
 
-from torchinfo import summary
 from torch.utils.tensorboard import SummaryWriter
-from utils import save_checkpoint
+from utils import LabelSmoothLoss, save_checkpoint
 
 try:
     from torch.cuda.amp import autocast, GradScaler
@@ -22,13 +22,18 @@ try:
 except:
     TORCH_FP16 = False
 
+warnings.filterwarnings("ignore", "(Possibly )?corrupt EXIF data", UserWarning)
+
 def parse_args():
     # General settings
-    parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Example')
-    parser.add_argument('--data-dir', type=str, default='/tmp/cifar10', metavar='D',
-                        help='directory to download cifar10 dataset to')
-    parser.add_argument('--log-dir', default='./logs/torch_cifar10',
-                        help='TensorBoard/checkpoint directory')
+    parser = argparse.ArgumentParser(description='PyTorch ImageNet Example',
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--train-dir', default='/tmp/imagenet/ILSVRC2012_img_train/',
+                        help='path to training data')
+    parser.add_argument('--val-dir', default='/tmp/imagenet/ILSVRC2012_img_val/',
+                        help='path to validation data')    
+    parser.add_argument('--log-dir', default='./logs/torch_imagenet',
+                        help='TensorBoard/checkpoint log directory')
     parser.add_argument('--checkpoint-format', default='checkpoint_{epoch}.pth.tar',
                         help='checkpoint file format')
     parser.add_argument('--no-cuda', action='store_true', default=False,
@@ -38,37 +43,39 @@ def parse_args():
     parser.add_argument('--fp16', action='store_true', default=False,
                         help='use torch.cuda.amp for fp16 training (default: false)')
 
-    # Training settings
-    parser.add_argument('--model', type=str, default='resnet32',
-                        help='ResNet model to use [20, 32, 56]')
-    parser.add_argument('--batch-size', type=int, default=128, metavar='N',
-                        help='input batch size for training (default: 128)')
-    parser.add_argument('--val-batch-size', type=int, default=128,
-                        help='input batch size for validation (default: 128)')
+   # Default settings from https://arxiv.org/abs/1706.02677.
+    parser.add_argument('--model', default='resnet50',
+                        help='Model (resnet{35,50,101,152})')
+    parser.add_argument('--batch-size', type=int, default=32,
+                        help='input batch size for training')
+    parser.add_argument('--val-batch-size', type=int, default=32,
+                        help='input batch size for validation')
     parser.add_argument('--batches-per-allreduce', type=int, default=1,
                         help='number of batches processed locally before '
                              'executing allreduce across workers; it multiplies '
                              'total batch size.')
-    parser.add_argument('--epochs', type=int, default=2, metavar='N',
-                        help='number of epochs to train (default: 100)')
-    parser.add_argument('--base-lr', type=float, default=0.1, metavar='LR',
-                        help='base learning rate (default: 0.1)')
-    parser.add_argument('--lr-decay', nargs='+', type=int, default=[35, 75, 90],
-                        help='epoch intervals to decay lr (default: [35, 75, 90])')
-    parser.add_argument('--warmup-epochs', type=int, default=5, metavar='WE',
-                        help='number of warmup epochs (default: 5)')
-    parser.add_argument('--momentum', type=float, default=0.9, metavar='M',
-                        help='SGD momentum (default: 0.9)')
-    parser.add_argument('--weight-decay', type=float, default=5e-4, metavar='W',
-                        help='SGD weight decay (default: 5e-4)')
-    parser.add_argument('--checkpoint-freq', type=int, default=10,
+    parser.add_argument('--epochs', type=int, default=55,
+                        help='number of epochs to train (default: 55)')
+    parser.add_argument('--base-lr', type=float, default=0.0125,
+                        help='learning rate for a single GPU (default: 0.0125)')
+    parser.add_argument('--lr-decay', nargs='+', type=int, default=[25,35,40,45,50],
+                        help='epoch intervals to decay lr (default: 25,35,40,45,50)')
+    parser.add_argument('--warmup-epochs', type=float, default=5,
+                        help='number of warmup epochs')
+    parser.add_argument('--momentum', type=float, default=0.9,
+                        help='SGD momentum')
+    parser.add_argument('--weight-decay', type=float, default=0.00005,
+                        help='weight decay')
+    parser.add_argument('--label-smoothing', type=float, default=0.1,
+                        help='label smoothing (default 0.1)')
+    parser.add_argument('--checkpoint-freq', type=int, default=5,
                         help='epochs between checkpoints')
 
     # KFAC Parameters
-    parser.add_argument('--kfac-update-freq', type=int, default=10,
-                        help='iters between kfac inv ops (0 disables kfac) (default: 10)')
-    parser.add_argument('--kfac-cov-update-freq', type=int, default=1,
-                        help='iters between kfac cov ops (default: 1)')
+    parser.add_argument('--kfac-update-freq', type=int, default=100,
+                        help='iters between kfac inv ops (0 disables kfac) (default: 100)')
+    parser.add_argument('--kfac-cov-update-freq', type=int, default=10,
+                        help='iters between kfac cov ops (default: 10)')
     parser.add_argument('--kfac-update-freq-alpha', type=float, default=10,
                         help='KFAC update freq multiplier (default: 10)')
     parser.add_argument('--kfac-update-freq-decay', nargs='+', type=int, default=None,
@@ -77,8 +84,8 @@ def parse_args():
                         help='Use inverse KFAC update instead of eigen (default False)')
     parser.add_argument('--stat-decay', type=float, default=0.95,
                         help='Alpha value for covariance accumulation (default: 0.95)')
-    parser.add_argument('--damping', type=float, default=0.003,
-                        help='KFAC damping factor (defaultL 0.003)')
+    parser.add_argument('--damping', type=float, default=0.001,
+                        help='KFAC damping factor (defaultL 0.001)')
     parser.add_argument('--damping-alpha', type=float, default=0.5,
                         help='KFAC damping decay factor (default: 0.5)')
     parser.add_argument('--damping-decay', nargs='+', type=int, default=None,
@@ -95,7 +102,7 @@ def parse_args():
     parser.add_argument('--kfac-grad-worker-fraction', type=float, default=0.25,
                         help='Fraction of workers to compute the gradients '
                              'when using HYBRID_OPT (default: 0.25)')
-    
+
     parser.add_argument('--backend', type=str, default='nccl',
                         help='backend for distribute training (default: nccl)')
     # Set automatically by torch distributed launch
@@ -107,138 +114,98 @@ def parse_args():
 
     return args
 
-def main():
-    # Parse command line arguments
+if __name__ == '__main__': 
+    torch.multiprocessing.set_start_method('spawn')
     args = parse_args()
-    print(args)
 
-    # Initialize the distributed process group
     torch.distributed.init_process_group(backend=args.backend, init_method='env://')
+    torch.distributed.barrier()
+    kfac.comm.init_comm_backend()
     
-    # Initialize the communication backend
-    kfac.comm.init_comm_backend() 
-
-    # Set CUDA device if enabled
     if args.cuda:
         torch.cuda.set_device(args.local_rank)
         torch.cuda.manual_seed(args.seed)
-        torch.backends.cudnn.benchmark = False
-        torch.backends.cudnn.deterministic = True
+        #torch.backends.cudnn.benchmark = False
+        #torch.backends.cudnn.deterministic = True
 
-    # Print rank, world size, and device IDs
     print('rank = {}, world_size = {}, device_ids = {}'.format(
             torch.distributed.get_rank(), torch.distributed.get_world_size(),
             args.local_rank))
 
-    # Update args with backend, base_lr, verbose, and horovod properties
     args.backend = kfac.comm.backend
     args.base_lr = args.base_lr * dist.get_world_size() * args.batches_per_allreduce
     args.verbose = True if dist.get_rank() == 0 else False
     args.horovod = False
 
-    # Get data loaders for training and validation datasets
-    train_sampler, train_loader, _, val_loader = datasets.get_cifar(args)
+    train_sampler, train_loader, _, val_loader = datasets.get_imagenet(args)
+    if args.model.lower() == 'resnet50':
+        model = models.resnet50()
+    elif args.model.lower() == 'resnet101':
+        model = models.resnet101()
+    elif args.model.lower() == 'resnet152':
+        model = models.resnet152()
 
-    # Instantiate the model
-    model = models.get_model(args.model)
-
-    # Set the device (CPU or CUDA) for the model
-    device = 'cpu' if not args.cuda else 'cuda' 
+    device = 'cpu' if not args.cuda else 'cuda'
     model.to(device)
 
-    # Wrap the model with DistributedDataParallel for distributed training
-    model = torch.nn.parallel.DistributedDataParallel(model, 
+    model = torch.nn.parallel.DistributedDataParallel(model,
             device_ids=[args.local_rank])
 
-    # Create log directory and set checkpoint format
+    if args.verbose:
+        print(model)
+
     os.makedirs(args.log_dir, exist_ok=True)
     args.checkpoint_format = os.path.join(args.log_dir, args.checkpoint_format)
-
-    # Create a SummaryWriter for logging if verbose is True
     args.log_writer = SummaryWriter(args.log_dir) if args.verbose else None
 
-    # Initialize resume_from_epoch to 0
+    # If set > 0, will resume training from a given checkpoint.
     args.resume_from_epoch = 0
-
-    # Find the latest checkpoint and update resume_from_epoch if found
     for try_epoch in range(args.epochs, 0, -1):
         if os.path.exists(args.checkpoint_format.format(epoch=try_epoch)):
             args.resume_from_epoch = try_epoch
             break
-    
-    # Initialize scaler for mixed precision training
+
     scaler = None
     if args.fp16:
-        # Check if torch.cuda.amp fp16 training is supported
-        if not TORCH_FP16:
-            raise ValueError('The installed version of torch does not '
-                             'support torch.cuda.amp fp16 training. This '
-                             'requires torch version >= 1.16')
-        scaler = GradScaler()
+         if not TORCH_FP16:
+             raise ValueError('The installed version of torch does not '
+                              'support torch.cuda.amp fp16 training. This '
+                              'requires torch version >= 1.16')
+         scaler = GradScaler()
     args.grad_scaler = scaler
 
-    # Get optimizer, preconditioner, and lr_schedules
     optimizer, preconditioner, lr_schedules = optimizers.get_optimizer(model, args)
+    loss_func = LabelSmoothLoss(args.label_smoothing)
 
-    # Set the loss function
-    loss_func = torch.nn.CrossEntropyLoss()
-
-    # Load model, optimizer, preconditioner, and schedulers from checkpoint if resuming from a previous epoch
+    # Restore from a previous checkpoint, if initial_epoch is specified.
     if args.resume_from_epoch > 0:
-        # Get the file path of the checkpoint for the specified epoch
         filepath = args.checkpoint_format.format(epoch=args.resume_from_epoch)
-        
-        # Define the mapping for loading the checkpoint on the appropriate device
         map_location = {'cuda:0': 'cuda:{}'.format(args.local_rank)}
-        
-        # Load the checkpoint from the specified file path
         checkpoint = torch.load(filepath, map_location=map_location)
-        
-        # Load the model's state dictionary from the checkpoint
         model.module.load_state_dict(checkpoint['model'])
-        
-        # Load the optimizer's state dictionary from the checkpoint
         optimizer.load_state_dict(checkpoint['optimizer'])
-        
-        # Load schedulers' state dictionaries if the checkpoint contains a list of schedulers
         if isinstance(checkpoint['schedulers'], list):
             for sched, state in zip(lr_schedules, checkpoint['schedulers']):
                 sched.load_state_dict(state)
-        
-        # Load preconditioner's state dictionary if the checkpoint contains a preconditioner and preconditioner is not None
-        if (checkpoint['preconditioner'] is not None and 
+        if (checkpoint['preconditioner'] is not None and
                 preconditioner is not None):
             preconditioner.load_state_dict(checkpoint['preconditioner'])
 
-    # Start time
     start = time.time()
 
-    # Training loop
     for epoch in range(args.resume_from_epoch + 1, args.epochs + 1):
-        # Perform training step
-        engine.train(epoch, model, optimizer, preconditioner, loss_func,
-                    train_sampler, train_loader, args)
-        
-        # Evaluate model on validation set
+        engine.train(epoch, model, optimizer, preconditioner, loss_func, 
+                     train_sampler, train_loader, args)
         engine.test(epoch, model, loss_func, val_loader, args)
-        
-        # Update learning rate schedules
         for scheduler in lr_schedules:
             scheduler.step()
-        
-        # Save checkpoint if epoch is a multiple of checkpoint_freq and rank is 0
-        if (epoch > 0 and epoch % args.checkpoint_freq == 0 and 
+        if (epoch > 0 and epoch % args.checkpoint_freq == 0 and
                 dist.get_rank() == 0):
-            # Note: save model.module because model may be a Distributed wrapper
-            # Saving the underlying model is more generic
+            # Note: save model.module b/c model may be Distributed wrapper so saving
+            # the underlying model is more generic
             save_checkpoint(model.module, optimizer, preconditioner, lr_schedules,
                             args.checkpoint_format.format(epoch=epoch))
 
-    # Print total training time if verbose is True
     if args.verbose:
         print('\nTraining time: {}'.format(datetime.timedelta(seconds=time.time() - start)))
 
-
-
-if __name__ == '__main__': 
-    main()

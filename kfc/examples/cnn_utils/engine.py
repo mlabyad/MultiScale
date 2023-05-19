@@ -80,12 +80,6 @@ def train(epoch,
                     else:
                         loss.backward()
 
-            # Update preconditioner if available
-            if preconditioner is not None:
-                if scaler is not None:
-                    scaler.unscale_(optimizer)
-                preconditioner.step()
-
             # Update optimizer using gradient scaler if available
             if scaler is not None:
                 scaler.step(optimizer)
