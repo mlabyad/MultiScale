@@ -11,6 +11,7 @@ from msnet import msNet
 import cnn_utils.datasets as datasets
 import cnn_utils.engine as engine
 import cnn_utils.optimizers as optimizers
+from pathlib import Path
 
 from torchinfo import summary
 from torch.utils.tensorboard import SummaryWriter
@@ -25,6 +26,9 @@ except:
 def parse_args():
     # General settings
     parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Example')
+    parser.add_argument('--root', default=Path("/scratch1/99999/malb23/ASC22050/SR_Dataset_v1/cresis-data"))
+    parser.add_argument('--trainlist', default=Path("../data/train.lst"))
+    parser.add_argument('--devlist', default=Path("../data/dev.lst"))
     parser.add_argument('--data-dir', type=str, default='/tmp/cifar10', metavar='D',
                         help='directory to download cifar10 dataset to')
     parser.add_argument('--log-dir', default='./logs/torch_cifar10',
@@ -51,7 +55,7 @@ def parse_args():
                              'total batch size.')
     parser.add_argument('--epochs', type=int, default=2, metavar='N',
                         help='number of epochs to train (default: 100)')
-    parser.add_argument('--base-lr', type=float, default=0.1, metavar='LR',
+    parser.add_argument('--base-lr', type=float, default=1e-06, metavar='LR',
                         help='base learning rate (default: 0.1)')
     parser.add_argument('--lr-decay', nargs='+', type=int, default=[35, 75, 90],
                         help='epoch intervals to decay lr (default: [35, 75, 90])')
