@@ -34,7 +34,7 @@ def train(epoch,
               desc='Epoch {:3d}/{:3d}'.format(epoch, args.epochs),
               disable=not args.verbose) as t:
         # Iterate over batches in the train loader
-        for batch in enumerate(train_loader):
+        for batch in train_loader:
 
             # Get data and label from the batch
             data, label, image_name = batch['data'], batch['label'], batch['id'][0]
