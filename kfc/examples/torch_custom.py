@@ -26,9 +26,6 @@ except:
 def parse_args():
     # General settings
     parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Example')
-    parser.add_argument('--root', default=Path("/scratch1/99999/malb23/ASC22050/SR_Dataset_v1/cresis-data"))
-    parser.add_argument('--trainlist', default=Path("../data/train.lst"))
-    parser.add_argument('--devlist', default=Path("../data/dev.lst"))
     parser.add_argument('--data-dir', type=str, default='/tmp/cifar10', metavar='D',
                         help='directory to download cifar10 dataset to')
     parser.add_argument('--log-dir', default='./logs/torch_cifar10',
@@ -118,7 +115,6 @@ def parse_args():
 def main():
     # Parse command line arguments
     args = parse_args()
-    print(args)
 
     # Initialize the distributed process group
     torch.distributed.init_process_group(backend=args.backend, init_method='env://')
@@ -143,6 +139,11 @@ def main():
     args.base_lr = args.base_lr * dist.get_world_size() * args.batches_per_allreduce
     args.verbose = True if dist.get_rank() == 0 else False
     args.horovod = False
+
+    args.root = Path("/scratch1/99999/malb23/ASC22050/SR_Dataset_v1/cresis-data")
+    args.trainlist = Path("../data/train.lst")
+    args.devlist = Path("../data/dev.lst")
+    print(args)
 
     # Get data loaders for training and validation datasets
     train_sampler, train_loader, _, val_loader = datasets.get_cifar(args)
