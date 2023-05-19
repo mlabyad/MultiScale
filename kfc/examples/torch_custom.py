@@ -218,17 +218,14 @@ def main():
     start = time.time()
 
     # Training loop
+    args.global_step = 0
     for epoch in range(args.resume_from_epoch + 1, args.epochs + 1):
         # Perform training step
         engine.train(epoch, model, optimizer, preconditioner,
-                    train_sampler, train_loader, args)
+                    train_sampler, train_loader, lr_schedules, args)
         
         # Evaluate model on validation set
         engine.test(epoch, model, val_loader, args)
-        
-        # Update learning rate schedules
-        for scheduler in lr_schedules:
-            scheduler.step()
         
         # Save checkpoint if epoch is a multiple of checkpoint_freq and rank is 0
         if (epoch > 0 and epoch % args.checkpoint_freq == 0 and 

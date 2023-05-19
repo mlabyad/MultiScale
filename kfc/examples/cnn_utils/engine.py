@@ -2,6 +2,8 @@ import math
 import sys
 import torch
 from tqdm import tqdm
+from modules.utils import Averagvalue
+from modules.functions import   cross_entropy_loss
 
 sys.path.append('..')
 from utils import Metric, accuracy
@@ -11,20 +13,21 @@ def train(epoch,
           optimizer, 
           preconditioner, 
           train_sampler, 
-          train_loader, 
+          train_loader,
+          scheduler, 
           args):
-    # Set the model in training mode
-    model.train()
+    # # Set the model in training mode
+    # model.train()
     
     # Set the epoch for the train sampler
     train_sampler.set_epoch(epoch)
     
     # Initialize metrics for tracking train loss and accuracy
-    train_loss = Metric('train_loss') 
-    train_accuracy = Metric('train_accuracy')
-    
-    # Get the gradient scaler if available
-    scaler = args.grad_scaler if 'grad_scaler' in args else None
+    losses = Averagvalue() # Average loss value across batches
+    epoch_loss = []  # List to store the loss for each epoch
+    val_losses = Averagvalue()  # Average validation loss value across batches
+    epoch_val_loss = []  # List to store the validation loss for each epoch
+    counter = 0  # Counter to track iterations within an epoch
 
     # Initialize a progress bar using tqdm
     with tqdm(total=len(train_loader),
@@ -32,63 +35,52 @@ def train(epoch,
               desc='Epoch {:3d}/{:3d}'.format(epoch, args.epochs),
               disable=not args.verbose) as t:
         # Iterate over batches in the train loader
-        for batch_idx, (data, target) in enumerate(train_loader):
-            # Move data and target to the GPU if available
+        for batch in enumerate(train_loader):
+
+            # Get data and label from the batch
+            data, label, image_name = batch['data'], batch['label'], batch['id'][0]
+
+            # Move data and label to the GPU if available
             if args.cuda:
-                data, target = data.cuda(), target.cuda()
-            
-            # Reset gradients in the optimizer
-            optimizer.zero_grad()
+                for key in data:
+                    data[key] = data[key].cuda()
+                label = label.cuda()
 
-            # Split the data into mini-batches
-            batch_idx = range(0, len(data), args.batch_size)
-            for i in batch_idx:
-                data_batch = data[i:i + args.batch_size]
-                target_batch = target[i:i + args.batch_size]
+            image = data['image']
 
-                # Perform forward pass and calculate loss
-                if scaler is not None:
-                    # Automatic mixed precision training
-                    with torch.cuda.amp.autocast():
-                        output = model(data_batch)
-                        loss = loss_func(output, target_batch)
-                else:
-                    # Standard precision training
-                    output = model(data_batch)
-                    loss = loss_func(output, target_batch)
-                
-                # Normalize the loss by the number of batches per allreduce
-                loss = loss / args.batches_per_allreduce
+            # Perform forward pass and calculate loss
+            outputs = model(data)
 
-                # Update metrics without computing gradients
-                with torch.no_grad():
-                    train_loss.update(loss)
-                    train_accuracy.update(accuracy(output, target_batch))
-
-                if i < batch_idx[-1]:
-                    # Perform backward pass for intermediate mini-batches without synchronization
-                    with model.no_sync():
-                        if scaler is not None:
-                            scaler.scale(loss).backward()
-                        else:
-                            loss.backward()
-                else:
-                    # Perform backward pass and optimization step for the last mini-batch
-                    if scaler is not None:
-                        scaler.scale(loss).backward()
-                    else:
-                        loss.backward()
-
-            # Update optimizer using gradient scaler if available
-            if scaler is not None:
-                scaler.step(optimizer)
-                scaler.update()
+            ## loss
+            if args.cuda:
+                loss = torch.zeros(1).cuda()  # Initialize loss as zero on GPU
             else:
-                optimizer.step()
+                loss = torch.zeros(1)  # Initialize loss as zero on CPU
+            for o in outputs:
+                loss = loss + cross_entropy_loss(o, label)  # Compute the cross-entropy loss for each output
+            counter += 1
+            loss = loss / args.itersize  # Average the loss across iterations
+            loss.backward()  # Backpropagate the loss
+
+
+            # SGD step
+            if counter == args.itersize:
+                optimizer.step()  # Update model parameters using the optimizer
+                optimizer.zero_grad()  # Reset gradients
+                counter = 0
+                
+                # Adjust learning rate
+                scheduler.step()
+                args.global_step += 1
+
+
+            # Measure accuracy and record loss
+            losses.update(loss.item(), image.size(0))  # Update the average loss value
+            epoch_loss.append(loss.item())  # Append the loss to the list for the current epoch
 
             # Update the progress bar with relevant information
-            t.set_postfix_str("loss: {:.4f}, acc: {:.2f}%, lr: {:.4f}".format(
-                    train_loss.avg, 100*train_accuracy.avg,
+            t.set_postfix_str("loss: {:.4f}, lr: {:.4f}".format(
+                    losses.avg,
                     optimizer.param_groups[0]['lr']))
             t.update(1)
 
