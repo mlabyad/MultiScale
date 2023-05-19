@@ -42,9 +42,9 @@ def parse_args():
     # Training settings
     parser.add_argument('--model', type=str, default='resnet32',
                         help='ResNet model to use [20, 32, 56]')
-    parser.add_argument('--batch-size', type=int, default=2, metavar='N',
+    parser.add_argument('--batch-size', type=int, default=1, metavar='N',
                         help='input batch size for training (default: 128)')
-    parser.add_argument('--val-batch-size', type=int, default=2,
+    parser.add_argument('--val-batch-size', type=int, default=1,
                         help='input batch size for validation (default: 128)')
     parser.add_argument('--batches-per-allreduce', type=int, default=1,
                         help='number of batches processed locally before '
