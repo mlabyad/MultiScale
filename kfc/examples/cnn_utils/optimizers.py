@@ -1,6 +1,7 @@
 import sys
 import kfac
 import torch.optim as optim
+from torch.optim import lr_scheduler
 
 sys.path.append('..')
 
@@ -17,9 +18,9 @@ def get_optimizer(model, args, batch_first=True):
 
     preconditioner = None
 
-    lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=args.stepsize, gamma=args.gamma)
+    scheduler = lr_scheduler.StepLR(optimizer, step_size=args.stepsize, gamma=args.gamma)
 
-    return optimizer, preconditioner, lr_scheduler
+    return optimizer, preconditioner, scheduler
 
 
 ##========================== adjusting lrs
