@@ -96,88 +96,83 @@ class Trainer(object):
 
         self.writer = SummaryWriter(args.log_dir)
 
-    def train(self, save_dir, epoch):
-
-        ## initilization
-        losses = Averagvalue()
-        epoch_loss = []
-
-        val_losses = Averagvalue()
-        epoch_val_loss = []
-
-
-        counter = 0
-        with tqdm(total=self.n_train, desc=f'Epoch {epoch + 1}/{self.max_epoch}', unit='img') as pbar:
-            for batch in self.train_loader:
-
-                data, label, image_name= batch['data'], batch['label'], batch['id'][0]
+def train(self, save_dir, epoch):
+    # Initialization
+    losses = Averagvalue()  # Average loss value across batches
+    epoch_loss = []  # List to store the loss for each epoch
+    val_losses = Averagvalue()  # Average validation loss value across batches
+    epoch_val_loss = []  # List to store the validation loss for each epoch
+    counter = 0  # Counter to track iterations within an epoch
+    
+    # Create a progress bar using tqdm
+    with tqdm(total=self.n_train, desc=f'Epoch {epoch + 1}/{self.max_epoch}', unit='img') as pbar:
+        # Iterate over batches in the train loader
+        for batch in self.train_loader:
+            data, label, image_name = batch['data'], batch['label'], batch['id'][0]
+            
+            # Move data and label to the GPU if available
+            if torch.cuda.is_available():
+                for key in data:
+                    data[key] = data[key].cuda()
+                label = label.cuda()
                 
+            image = data['image']
+            
+            ## forward
+            outputs = self.model(data)  # Perform forward pass
+            
+            ## loss
+            if self.use_cuda:
+                loss = torch.zeros(1).cuda()  # Initialize loss as zero on GPU
+            else:
+                loss = torch.zeros(1)  # Initialize loss as zero on CPU
+            
+            for o in outputs:
+                loss = loss + cross_entropy_loss(o, label)  # Compute the cross-entropy loss for each output
+            
+            counter += 1
+            loss = loss / self.itersize  # Average the loss across iterations
+            
+            loss.backward()  # Backpropagate the loss
+            
+            # SGD step
+            if counter == self.itersize:
+                self.optimizer.step()  # Update model parameters using the optimizer
+                self.optimizer.zero_grad()  # Reset gradients
+                counter = 0
                 
+                # Adjust learning rate
+                self.scheduler.step()
+                self.global_step += 1
 
-                if torch.cuda.is_available():
-                    for key in data:
-                        data[key]=data[key].cuda()
-                    label=label.cuda()
-                    
-                image=data['image']
-                
-                ## forward
-                outputs = self.model(data)
-                ## loss
+            # Measure accuracy and record loss
+            losses.update(loss.item(), image.size(0))  # Update the average loss value
+            epoch_loss.append(loss.item())  # Append the loss to the list for the current epoch
 
-
-                if self.use_cuda:
-                    loss = torch.zeros(1).cuda()
-                else:
-                    loss = torch.zeros(1)
+            self.writer.add_scalar('Loss/train', loss.item(), self.global_step)  # Log the loss value
+            pbar.set_postfix(**{'loss (batch)': loss.item()})  # Update the progress bar with the current batch loss
+            pbar.update(image.shape[0])  # Move the progress bar forward by the size of the current batch
 
 
-                for o in outputs:
-                    loss = loss+cross_entropy_loss(o, label)
-                #loss=self.loss_w(loss_r)
+            if (self.global_step >0) and (self.global_step % 500 ==0): #(self.n_dataset // (10 * self.batch_size)) == 0:
+                ## logging
+                for tag, value in self.model.named_parameters():
+                    tag = tag.replace('.', '/')
+                    self.writer.add_histogram('weights/' + tag, value.data.cpu().numpy(), self.global_step)
+                    self.writer.add_histogram('grads/' + tag, value.grad.data.cpu().numpy(), self.global_step)
 
-                counter += 1
-                loss = loss / self.itersize
-                loss.backward()
 
-                # SDG step
-                if counter == self.itersize:
-                    self.optimizer.step()
-                    self.optimizer.zero_grad()
-                    counter = 0
-                    #adjust learnig rate
-                    self.scheduler.step()
-                    self.global_step += 1
-
-                # measure accuracy and record loss
-                losses.update(loss.item(), image.size(0))
-                epoch_loss.append(loss.item())
-
-                self.writer.add_scalar('Loss/train', loss.item(), self.global_step)
-                pbar.set_postfix(**{'loss (batch)': loss.item()})
-                pbar.update(image.shape[0])
+                self.writer.add_images('images', image, self.global_step)
+                self.writer.add_images('masks/true', label, self.global_step)
+                self.writer.add_images('masks/pred', outputs[-1] > 0.5, self.global_step)
 
 
 
-                if (self.global_step >0) and (self.global_step % 500 ==0): #(self.n_dataset // (10 * self.batch_size)) == 0:
-                    ## logging
-                    for tag, value in self.model.named_parameters():
-                        tag = tag.replace('.', '/')
-                        self.writer.add_histogram('weights/' + tag, value.data.cpu().numpy(), self.global_step)
-                        self.writer.add_histogram('grads/' + tag, value.grad.data.cpu().numpy(), self.global_step)
+                outputs.append(label)
+                outputs.append(image)
 
-
-                    self.writer.add_images('images', image, self.global_step)
-                    self.writer.add_images('masks/true', label, self.global_step)
-                    self.writer.add_images('masks/pred', outputs[-1] > 0.5, self.global_step)
-
-
-
-                    outputs.append(label)
-                    outputs.append(image)
-
-                    dev_checkpoint(save_dir=join(save_dir, f'training-epoch-{epoch+1}-record'),
-                               i=self.global_step, epoch=epoch, image_name=image_name, outputs= outputs)
+                dev_checkpoint(save_dir=join(save_dir, f'training-epoch-{epoch+1}-record'),
+                            i=self.global_step, epoch=epoch, image_name=image_name, outputs= outputs)
 
 
         self.save_state(epoch, save_path=join(save_dir, f'checkpoint_epoch{epoch+1}.pth'))
