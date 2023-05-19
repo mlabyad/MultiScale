@@ -56,7 +56,7 @@ class SnowData(D.Dataset):
          #img=img[0,:,:]*np.ones(1, dtype=np.float32)[None, None, :]
         (data_id, _) = splitext(basename(img_abspath))
         if self.train:
-            ct_abspath=img_abspath.replace('data_','layer_binary_')
+            ct_abspath=img_abspath.replace('img_','layer_bin_')
             assert os.path.isfile(ct_abspath), "file  {}. doesn't exist.".format(ct_abspath)
             ctour=cv2.imread(ct_abspath, cv2.IMREAD_GRAYSCALE)
             if self.transform:
