@@ -7,7 +7,7 @@ import kfac
 import torch
 import torch.distributed as dist
 
-import cnn_utils.cifar_resnet as models
+from msnet import msNet
 import cnn_utils.datasets as datasets
 import cnn_utils.engine as engine
 import cnn_utils.optimizers as optimizers
@@ -41,9 +41,9 @@ def parse_args():
     # Training settings
     parser.add_argument('--model', type=str, default='resnet32',
                         help='ResNet model to use [20, 32, 56]')
-    parser.add_argument('--batch-size', type=int, default=128, metavar='N',
+    parser.add_argument('--batch-size', type=int, default=2, metavar='N',
                         help='input batch size for training (default: 128)')
-    parser.add_argument('--val-batch-size', type=int, default=128,
+    parser.add_argument('--val-batch-size', type=int, default=2,
                         help='input batch size for validation (default: 128)')
     parser.add_argument('--batches-per-allreduce', type=int, default=1,
                         help='number of batches processed locally before '
@@ -62,6 +62,10 @@ def parse_args():
     parser.add_argument('--weight-decay', type=float, default=5e-4, metavar='W',
                         help='SGD weight decay (default: 5e-4)')
     parser.add_argument('--checkpoint-freq', type=int, default=10,
+                        help='epochs between checkpoints')
+    parser.add_argument('--stepsize', type=int, default=1e4,
+                        help='epochs between checkpoints')
+    parser.add_argument('--gamma', type=int, default=0.1,
                         help='epochs between checkpoints')
 
     # KFAC Parameters
@@ -140,7 +144,7 @@ def main():
     train_sampler, train_loader, _, val_loader = datasets.get_cifar(args)
 
     # Instantiate the model
-    model = models.get_model(args.model)
+    model = model=msNet()
 
     # Set the device (CPU or CUDA) for the model
     device = 'cpu' if not args.cuda else 'cuda' 
@@ -180,8 +184,8 @@ def main():
     # Get optimizer, preconditioner, and lr_schedules
     optimizer, preconditioner, lr_schedules = optimizers.get_optimizer(model, args)
 
-    # Set the loss function
-    loss_func = torch.nn.CrossEntropyLoss()
+    # # Set the loss function
+    # loss_func = torch.nn.CrossEntropyLoss()
 
     # Load model, optimizer, preconditioner, and schedulers from checkpoint if resuming from a previous epoch
     if args.resume_from_epoch > 0:
@@ -216,11 +220,11 @@ def main():
     # Training loop
     for epoch in range(args.resume_from_epoch + 1, args.epochs + 1):
         # Perform training step
-        engine.train(epoch, model, optimizer, preconditioner, loss_func,
+        engine.train(epoch, model, optimizer, preconditioner,
                     train_sampler, train_loader, args)
         
         # Evaluate model on validation set
-        engine.test(epoch, model, loss_func, val_loader, args)
+        engine.test(epoch, model, val_loader, args)
         
         # Update learning rate schedules
         for scheduler in lr_schedules:

@@ -7,7 +7,7 @@ import kfac
 import torch
 import torch.distributed as dist
 
-import cnn_utils.cifar_resnet as models
+import cnn_utils.msnet_model as models
 import cnn_utils.datasets as datasets
 import cnn_utils.engine as engine
 import cnn_utils.optimizers as optimizers

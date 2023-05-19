@@ -10,7 +10,6 @@ def train(epoch,
           model,
           optimizer, 
           preconditioner, 
-          loss_func, 
           train_sampler, 
           train_loader, 
           args):
