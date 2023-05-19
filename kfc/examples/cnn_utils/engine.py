@@ -5,7 +5,7 @@ from tqdm import tqdm
 from cnn_utils.functions import   cross_entropy_loss
 
 sys.path.append('..')
-from utils import Metric, accuracy, Averagvalue
+from utils import accuracy, Averagvalue
 
 def train(epoch,
           model,
