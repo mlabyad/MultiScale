@@ -143,6 +143,8 @@ def main():
     args.root = Path("/scratch1/99999/malb23/ASC22050/SR_Dataset_v1/cresis-data")
     args.trainlist = Path("../data/train.lst")
     args.devlist = Path("../data/dev.lst")
+    args.itersize = 10
+    
     print(args)
 
     # Get data loaders for training and validation datasets
