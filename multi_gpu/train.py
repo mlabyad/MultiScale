@@ -27,8 +27,6 @@ def parse_args():
     parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Example')
     parser.add_argument('--data-dir', type=str, default='/tmp/cifar10', metavar='D',
                         help='directory to download cifar10 dataset to')
-    parser.add_argument('--log-dir', default='./logs/torch_cifar10',
-                        help='TensorBoard/checkpoint directory')
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
     parser.add_argument('--seed', type=int, default=42, metavar='S',
@@ -103,6 +101,7 @@ def main():
     args.devlist = Path("./data/dev.lst")
     tag = datetime.datetime.now().strftime("%y%m%d-%H%M%S")
     args.tmp = Path(f'../tmp/{tag}')
+    args.log_dir = Path(f'../logs/{tag}')
     args.itersize = 10
     args.resume_path = None
 
@@ -123,7 +122,6 @@ def main():
 
     # Create log directory and set checkpoint format
     os.makedirs(args.log_dir, exist_ok=True)
-    args.checkpoint_format = os.path.join(args.log_dir, args.checkpoint_format)
 
     # Create a SummaryWriter for logging if verbose is True
     args.log_writer = SummaryWriter(args.log_dir) if args.verbose else None
