@@ -229,9 +229,9 @@ def main():
     args.tmp = Path(f'../tmp/{tag}')
     args.writer = SummaryWriter(args.log_dir) if args.verbose else None
     args.max_epoch = 2
+    args.start_epoch = 0
     args.n_train = len(train_loader)
-    print(args)
-    for epoch in range(args.resume_from_epoch + 1, args.epochs + 1):
+    for epoch in range(args.start_epoch, args.max_epoch):
         ## initial log (optional:sample36)
         if (epoch == 0) and (args.devlist is not None):
             print("Performing initial testing...")
