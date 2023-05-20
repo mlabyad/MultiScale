@@ -156,15 +156,14 @@ def main():
     model.to(device)
 
     # Wrap the model with DistributedDataParallel for distributed training
-    model = torch.nn.parallel.DistributedDataParallel(model, 
-            device_ids=[args.local_rank])
+    model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.local_rank])
 
     # Create log directory and set checkpoint format
     os.makedirs(args.log_dir, exist_ok=True)
     args.checkpoint_format = os.path.join(args.log_dir, args.checkpoint_format)
 
     # Create a SummaryWriter for logging if verbose is True
-    args.log_writer = SummaryWriter(args.log_dir)
+    args.log_writer = SummaryWriter(args.log_dir) if args.verbose else None
 
     # Initialize resume_from_epoch to 0
     args.resume_from_epoch = 0
