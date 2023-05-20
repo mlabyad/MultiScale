@@ -1,5 +1,4 @@
 import sys
-import kfac
 import torch.optim as optim
 from torch.optim import lr_scheduler
 

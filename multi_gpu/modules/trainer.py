@@ -1,15 +1,13 @@
-import math
 import sys
 import torch
 from tqdm import tqdm
-from cnn_utils.functions import   cross_entropy_loss
 import os
 import numpy as np
 import torch
 from tqdm import tqdm
 import cv2
 from os.path import join, split, isdir, isfile, splitext
-from cnn_utils.functions import   cross_entropy_loss # sigmoid_cross_entropy_loss
+from modules.functions import   cross_entropy_loss # sigmoid_cross_entropy_loss
 
 sys.path.append('..')
 from utils import accuracy, Averagvalue
@@ -153,6 +151,14 @@ def save_state(model, optimizer, epoch, save_path='checkpoint.pth'):
                     }, save_path)
 
 
+def resume(model, resume_path):
+    if isfile(resume_path):
+        print("=> loading checkpoint '{}'".format(resume_path))
+        checkpoint = torch.load(resume_path)
+        model.load_state_dict(checkpoint['state_dict'])
+        print("=> loaded checkpoint '{}'".format(resume_path))
+    else:
+        print("=> no checkpoint found at '{}'".format(resume_path))
 
 ##=========================== train_split func
 

@@ -1,8 +1,6 @@
 import torch
 import torch.nn.functional as F
 
-from kfac import comm
-
 def accuracy(output, target):
     pred = output.max(1, keepdim=True)[1]
     return pred.eq(target.view_as(pred)).float().mean()
@@ -32,20 +30,23 @@ class LabelSmoothLoss(torch.nn.Module):
         loss = (-weight * log_prob).sum(dim=-1).mean()
         return loss
 
-class Metric(object):
-    def __init__(self, name):
-        self.name = name
-        self.total = torch.tensor(0.0)
-        self.n = torch.tensor(0.0)
+class Averagvalue(object):
+    """Computes and stores the average and current value"""
+
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
 
     def update(self, val, n=1):
-        comm.backend.allreduce(val, async_op=False)
-        self.total += val.cpu()
-        self.n += n
-
-    @property
-    def avg(self):
-        return self.total / self.n
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
 
 def create_lr_schedule(workers, warmup_epochs, decay_schedule, alpha=0.1):
     def lr_schedule(epoch):
