@@ -10,7 +10,7 @@ from os.path import join, split, isdir, isfile, splitext
 from modules.functions import   cross_entropy_loss # sigmoid_cross_entropy_loss
 
 sys.path.append('..')
-from utils import accuracy, Averagvalue
+from modules.utils import accuracy, Averagvalue
 
 def train(epoch,
           model,
