@@ -87,12 +87,14 @@ def train(epoch,
                     ## logging
                     for tag, value in model.named_parameters():
                         tag = tag.replace('.', '/')
-                        args.writer.add_histogram('weights/' + tag, value.data.cpu().numpy(), args.global_step)
-                        args.writer.add_histogram('grads/' + tag, value.grad.data.cpu().numpy(), args.global_step)
+                        if args.writer is not None:
+                            args.writer.add_histogram('weights/' + tag, value.data.cpu().numpy(), args.global_step)
+                            args.writer.add_histogram('grads/' + tag, value.grad.data.cpu().numpy(), args.global_step)
 
-                    args.writer.add_images('images', image, args.global_step)
-                    args.writer.add_images('masks/true', label, args.global_step)
-                    args.writer.add_images('masks/pred', outputs[-1] > 0.5, args.global_step)
+                    if args.writer is not None:
+                        args.writer.add_images('images', image, args.global_step)
+                        args.writer.add_images('masks/true', label, args.global_step)
+                        args.writer.add_images('masks/pred', outputs[-1] > 0.5, args.global_step)
 
                     outputs.append(label)
                     outputs.append(image)
@@ -101,13 +103,15 @@ def train(epoch,
                                 i=args.global_step, epoch=epoch, image_name=image_name, outputs= outputs)
 
         save_state(epoch, save_path=join(save_dir, f'checkpoint_epoch{epoch+1}.pth'))
-        args.writer.add_scalar('Loss_avg', losses.avg, epoch+1)
+        if args.writer is not None:
+            args.writer.add_scalar('Loss_avg', losses.avg, epoch+1)
         # Update the training loss and accuracy for the current epoch
         args.train_loss.append(losses.avg)
         args.train_loss_detail += epoch_loss
-        if val_losses.count>0:
-            args.writer.add_scalar('Val_Loss_avg', val_losses.avg, epoch+1)
-        args.writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], args.global_step)
+        if args.writer is not None:
+            if val_losses.count>0:
+                args.writer.add_scalar('Val_Loss_avg', val_losses.avg, epoch+1)
+            args.writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], args.global_step)
 
 
 def test(epoch,
