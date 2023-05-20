@@ -99,8 +99,8 @@ def main():
     args.horovod = False
 
     args.root = Path("/scratch1/99999/malb23/ASC22050/SR_Dataset_v1/cresis-data")
-    args.trainlist = Path("../data/train.lst")
-    args.devlist = Path("../data/dev.lst")
+    args.trainlist = Path("./data/train.lst")
+    args.devlist = Path("./data/dev.lst")
     tag = datetime.datetime.now().strftime("%y%m%d-%H%M%S")
     args.tmp = Path(f'../tmp/{tag}')
     args.itersize = 10
