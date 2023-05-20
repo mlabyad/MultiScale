@@ -6,7 +6,7 @@ import datetime
 import kfac
 import torch
 import torch.distributed as dist
-
+from os.path import join, isdir
 from msnet import msNet
 import cnn_utils.datasets as datasets
 import cnn_utils.engine as engine
@@ -148,7 +148,7 @@ def main():
     print(args)
 
     # Get data loaders for training and validation datasets
-    train_sampler, train_loader, _, val_loader = datasets.get_cifar(args)
+    train_sampler, train_loader, _, dev_loader = datasets.get_cifar(args)
 
     # Instantiate the model
     model = model=msNet()
@@ -226,21 +226,22 @@ def main():
 
     # Training loop
     args.global_step = 0
+    args.train_loss = []
+    args.train_loss_detail = []
+    tag = datetime.now().strftime("%y%m%d-%H%M%S")
+    args.tmp = Path(f'../tmp/{tag}')
+    args.writer = SummaryWriter(args.log_dir) if args.verbose else None
     for epoch in range(args.resume_from_epoch + 1, args.epochs + 1):
+        ## initial log (optional:sample36)
+        if (epoch == 0) and (args.devlist is not None):
+            print("Performing initial testing...")
+            engine.test(epoch, model, dev_loader, args, save_dir = join(args.tmp, 'testing-record-0-initial'))
         # Perform training step
-        engine.train(epoch, model, optimizer, preconditioner,
-                    train_sampler, train_loader, lr_schedules, args)
+        engine.train(epoch, model, optimizer, train_sampler, train_loader, lr_schedules, args, save_dir = args.tmp)
         
         # Evaluate model on validation set
-        engine.test(epoch, model, val_loader, args)
-        
-        # Save checkpoint if epoch is a multiple of checkpoint_freq and rank is 0
-        if (epoch > 0 and epoch % args.checkpoint_freq == 0 and 
-                dist.get_rank() == 0):
-            # Note: save model.module because model may be a Distributed wrapper
-            # Saving the underlying model is more generic
-            save_checkpoint(model.module, optimizer, preconditioner, lr_schedules,
-                            args.checkpoint_format.format(epoch=epoch))
+        if args.devlist is not None:
+            engine.test(epoch, model, dev_loader, args, save_dir = join(args.tmp, f'testing-record-epoch-{epoch+1}'))
 
     # Print total training time if verbose is True
     if args.verbose:
