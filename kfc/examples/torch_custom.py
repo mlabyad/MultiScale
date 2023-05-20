@@ -228,7 +228,7 @@ def main():
     args.global_step = 0
     args.train_loss = []
     args.train_loss_detail = []
-    tag = datetime.now().strftime("%y%m%d-%H%M%S")
+    tag = datetime.datetime.now().strftime("%y%m%d-%H%M%S")
     args.tmp = Path(f'../tmp/{tag}')
     args.writer = SummaryWriter(args.log_dir) if args.verbose else None
     for epoch in range(args.resume_from_epoch + 1, args.epochs + 1):
