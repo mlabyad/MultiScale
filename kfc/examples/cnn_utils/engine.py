@@ -102,7 +102,7 @@ def train(epoch,
                     dev_checkpoint(save_dir=join(save_dir, f'training-epoch-{epoch+1}-record'),
                                 i=args.global_step, epoch=epoch, image_name=image_name, outputs= outputs)
 
-        save_state(epoch, save_path=join(save_dir, f'checkpoint_epoch{epoch+1}.pth'))
+        save_state(model, optimizer, epoch, save_path=join(save_dir, f'checkpoint_epoch{epoch+1}.pth'))
         if args.writer is not None:
             args.writer.add_scalar('Loss_avg', losses.avg, epoch+1)
         # Update the training loss and accuracy for the current epoch
@@ -145,11 +145,11 @@ def test(epoch,
         dev_checkpoint(save_dir, -1, epoch, image_name, outputs)
 
 
-def save_state(self, epoch, save_path='checkpoint.pth'):
+def save_state(model, optimizer, epoch, save_path='checkpoint.pth'):
         torch.save({
                     'epoch': epoch,
-                    'state_dict': self.model.state_dict(),
-                    'optimizer': self.optimizer.state_dict()
+                    'state_dict': model.state_dict(),
+                    'optimizer': optimizer.state_dict()
                     }, save_path)
 
 
