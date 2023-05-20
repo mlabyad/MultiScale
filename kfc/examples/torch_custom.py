@@ -164,7 +164,7 @@ def main():
     args.checkpoint_format = os.path.join(args.log_dir, args.checkpoint_format)
 
     # Create a SummaryWriter for logging if verbose is True
-    args.log_writer = SummaryWriter(args.log_dir) if args.verbose else None
+    args.log_writer = SummaryWriter(args.log_dir)
 
     # Initialize resume_from_epoch to 0
     args.resume_from_epoch = 0
