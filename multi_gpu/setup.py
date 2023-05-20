@@ -6,7 +6,6 @@ setuptools.setup(
     author="Greg Pauloski",
     author_email="jgpauloski@uchicago.edu",
     description="Distributed K-FAC Preconditioner for PyTorch",
-    long_description=open('README.md').read(),
     url="https://github.com/gpauloski/kfac_pytorch",
     packages=setuptools.find_packages(),
     license='MIT',
