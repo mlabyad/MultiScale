@@ -169,11 +169,11 @@ def main():
     # Initialize resume_from_epoch to 0
     args.resume_from_epoch = 0
 
-    # Find the latest checkpoint and update resume_from_epoch if found
-    for try_epoch in range(args.epochs, 0, -1):
-        if os.path.exists(args.checkpoint_format.format(epoch=try_epoch)):
-            args.resume_from_epoch = try_epoch
-            break
+    # # Find the latest checkpoint and update resume_from_epoch if found
+    # for try_epoch in range(args.epochs, 0, -1):
+    #     if os.path.exists(args.checkpoint_format.format(epoch=try_epoch)):
+    #         args.resume_from_epoch = try_epoch
+    #         break
     
     # Initialize scaler for mixed precision training
     scaler = None
