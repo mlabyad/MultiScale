@@ -228,7 +228,7 @@ def main():
     args.train_loss_detail = []
     tag = datetime.datetime.now().strftime("%y%m%d-%H%M%S")
     args.tmp = Path(f'../tmp/{tag}')
-    args.writer = SummaryWriter(args.log_dir) if args.verbose else None
+    args.writer = SummaryWriter(args.log_dir)
     args.max_epoch = 2
     args.n_train = len(train_loader)
     print(args)
