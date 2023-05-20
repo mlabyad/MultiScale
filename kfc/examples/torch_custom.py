@@ -145,8 +145,6 @@ def main():
     args.devlist = Path("../data/dev.lst")
     args.itersize = 10
     
-    print(args)
-
     # Get data loaders for training and validation datasets
     train_sampler, train_loader, _, dev_loader = datasets.get_cifar(args)
 
@@ -231,8 +229,9 @@ def main():
     tag = datetime.datetime.now().strftime("%y%m%d-%H%M%S")
     args.tmp = Path(f'../tmp/{tag}')
     args.writer = SummaryWriter(args.log_dir) if args.verbose else None
-    args.max_epoch = 15
+    args.max_epoch = 2
     args.n_train = len(train_loader)
+    print(args)
     for epoch in range(args.resume_from_epoch + 1, args.epochs + 1):
         ## initial log (optional:sample36)
         if (epoch == 0) and (args.devlist is not None):
