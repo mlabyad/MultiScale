@@ -34,10 +34,7 @@ def train(epoch,
     counter = 0  # Counter to track iterations within an epoch
 
     # Initialize a progress bar using tqdm
-    with tqdm(total=len(train_loader),
-              bar_format='{l_bar}{bar:10}{r_bar}',
-              desc='Epoch {:3d}/{:3d}'.format(epoch, args.epochs),
-              disable=not args.verbose) as pbar:
+    with tqdm(total=args.n_train, desc=f'Epoch {epoch + 1}/{args.max_epoch}', unit='img') as pbar:
         # Iterate over batches in the train loader
         for batch in train_loader:
 

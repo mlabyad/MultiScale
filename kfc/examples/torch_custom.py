@@ -231,6 +231,8 @@ def main():
     tag = datetime.datetime.now().strftime("%y%m%d-%H%M%S")
     args.tmp = Path(f'../tmp/{tag}')
     args.writer = SummaryWriter(args.log_dir) if args.verbose else None
+    args.max_epoch = 15
+    args.n_train = len(train_loader)
     for epoch in range(args.resume_from_epoch + 1, args.epochs + 1):
         ## initial log (optional:sample36)
         if (epoch == 0) and (args.devlist is not None):
