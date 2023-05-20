@@ -157,9 +157,8 @@ def save_state(model, optimizer, epoch, save_path='checkpoint.pth'):
 ##=========================== train_split func
 
 def dev_checkpoint(save_dir, i, epoch, image_name, outputs):
-    # # display and logging
-    # if not isdir(save_dir):
-    #     os.makedirs(save_dir)
+    # display and logging
+    os.makedirs(save_dir, exist_ok=True)
     outs=[]
     for o in outputs:
         outs.append(tensor2image(o))
