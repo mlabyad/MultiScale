@@ -9,8 +9,7 @@ import torch
 from tqdm import tqdm
 import cv2
 from os.path import join, split, isdir, isfile, splitext
-from modules.functions import   cross_entropy_loss # sigmoid_cross_entropy_loss
-from modules.utils import Averagvalue #, save_checkpoint
+from cnn_utils.functions import   cross_entropy_loss # sigmoid_cross_entropy_loss
 
 sys.path.append('..')
 from utils import accuracy, Averagvalue
