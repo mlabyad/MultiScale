@@ -15,49 +15,49 @@ from pathlib import Path
 
 def parse_args():
     # General settings
-    parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Example')
-    parser.add_argument('--data-dir', type=str, default='/tmp/cifar10', metavar='D',
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--root', type=str, default='/scratch1/99999/malb23/ASC22050/SR_Dataset_v1/cresis-data', metavar='D',
                         help='directory to download cifar10 dataset to')
-    parser.add_argument('--no-cuda', action='store_true', default=False,
-                        help='disables CUDA training')
-    parser.add_argument('--seed', type=int, default=42, metavar='S',
-                        help='random seed (default: 42)')
-    parser.add_argument('--fp16', action='store_true', default=False,
-                        help='use torch.cuda.amp for fp16 training (default: false)')
+    parser.add_argument('--trainlist', type=str, default='./data/train.lst')
+    parser.add_argument('--devlist', type=str, default='./data/dev.lst')
+    parser.add_argument('--tmp', type=str, default='../tmp/tag')
+    parser.add_argument('--log_dir', type=str, default='../logs/tag')
+    parser.add_argument('--seed', type=int, default=42, metavar='S', help='random seed (default: 42)')
 
     # Training settings
-    parser.add_argument('--batch-size', type=int, default=1, metavar='N',
-                        help='input batch size for training (default: 128)')
-    parser.add_argument('--val-batch-size', type=int, default=1,
-                        help='input batch size for validation (default: 128)')
+    parser.add_argument('--batch-size', type=int, default=1, metavar='N', help='input batch size for training (default: 15)')
+    parser.add_argument('--val-batch-size', type=int, default=1, help='input batch size for validation (default: 1)')
     parser.add_argument('--batches-per-allreduce', type=int, default=1,
                         help='number of batches processed locally before '
                              'executing allreduce across workers; it multiplies '
                              'total batch size.')
-    parser.add_argument('--lr', type=float, default=1e-06, metavar='LR',
-                        help='base learning rate (default: 0.1)')
-    parser.add_argument('--warmup-epochs', type=int, default=5, metavar='WE',
-                        help='number of warmup epochs (default: 5)')
-    parser.add_argument('--momentum', type=float, default=0.9, metavar='M',
-                        help='SGD momentum (default: 0.9)')
-    parser.add_argument('--weight-decay', type=float, default=5e-4, metavar='W',
-                        help='SGD weight decay (default: 5e-4)')
-    parser.add_argument('--stepsize', type=int, default=1e4,
-                        help='epochs between checkpoints')
-    parser.add_argument('--gamma', type=int, default=0.1,
-                        help='epochs between checkpoints')
+    parser.add_argument('--lr', type=float, default=1e-06, metavar='LR', help='base learning rate (default: 1e-06)')
+    parser.add_argument('--momentum', type=float, default=0.9, metavar='M', help='SGD momentum (default: 0.9)')
+    parser.add_argument('--stepsize', type=int, default=1e4, help='epochs between checkpoints')
+    parser.add_argument('--gamma', type=int, default=0.1, help='epochs between checkpoints')
+    parser.add_argument('--itersize', type=int, default=10)
+    parser.add_argument('--max_epoch', type=int, default=1)
+    parser.add_argument('--start_epoch', type=int, default=0)
+    parser.add_argument('--resume_path', type=str, default=None)
+    parser.add_argument('--weights_init_on', type=bool, default=False)
 
     # KFAC Parameters
-    parser.add_argument('--backend', type=str, default='nccl',
-                        help='backend for distribute training (default: nccl)')
+    parser.add_argument('--backend', type=str, default='nccl', help='backend for distribute training (default: nccl)')
     # Set automatically by torch distributed launch
-    parser.add_argument('--local_rank', type=int, default=0,
-                        help='local rank for distributed training')
+    parser.add_argument('--local_rank', type=int, default=0, help='local rank for distributed training')
 
     args = parser.parse_args()
-    args.cuda = not args.no_cuda and torch.cuda.is_available()
+    args.cuda = torch.cuda.is_available()
+    args.root = Path(args.root)
+    args.trainlist = Path(args.trainlist)
+    args.devlist = Path(args.devlist)
+    # tag = datetime.datetime.now().strftime("%y%m%d-%H%M%S")
+    tag = 'last_experiment'
+    args.tmp = Path(args.tmp.replace('tag', tag))
+    args.log_dir = Path(args.log_dir.replace('tag', tag))
 
     return args
+
 
 def main():
     # Parse command line arguments
@@ -85,19 +85,6 @@ def main():
     args.backend = kfac.comm.backend
     args.lr = args.lr * dist.get_world_size() * args.batches_per_allreduce
     args.verbose = True if dist.get_rank() == 0 else False
-
-    args.root = Path("/scratch1/99999/malb23/ASC22050/SR_Dataset_v1/cresis-data")
-    args.trainlist = Path("./data/train.lst")
-    args.devlist = Path("./data/dev.lst")
-    # tag = datetime.datetime.now().strftime("%y%m%d-%H%M%S")
-    tag = 'last_experiment'
-    args.tmp = Path(f'../tmp/{tag}')
-    args.log_dir = Path(f'../logs/{tag}')
-    args.itersize = 10
-    args.max_epoch = 1
-    args.start_epoch = 0
-    args.resume_path = None
-    args.weights_init_on = None
 
     # Get data loaders for training and validation datasets
     train_sampler, train_loader, _, dev_loader = datasets.get_cifar(args)
@@ -128,7 +115,6 @@ def main():
     # Print total training time if verbose is True
     if args.verbose:
         print('\nTraining time: {}'.format(datetime.timedelta(seconds=time.time() - start)))
-
 
 
 if __name__ == '__main__': 
