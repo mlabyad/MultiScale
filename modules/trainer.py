@@ -181,24 +181,29 @@ class Trainer(object):
     def test(self, dev_loader, save_dir, epoch):
         print("Running test ========= >")
         self.model.eval()
+        os.makedirs(save_dir, exist_ok=True)
         for idx, batch in enumerate(dev_loader):
 
+            #image,image_id= batch['image'] ,  batch['id'][0]
+            
             data, label, image_name= batch['data'], batch['label'], batch['id'][0]
 
             _, _, H, W = data['image'].shape
-
+            
             if torch.cuda.is_available():
                 for key in data:
                     data[key] = data[key].cuda()
+
+            
                 label = label.cuda()
 
             with torch.no_grad():
-                outputs = self.model(data)
+               outputs = self.model(data)
 
             outputs.append(1-outputs[-1])
             outputs.append(label)
             dev_checkpoint(save_dir, -1, epoch, image_name, outputs)
-
+            
             # result=tensor2image(results[-1])
             # result_b=tensor2image(1-results[-1])
 
@@ -212,7 +217,6 @@ class Trainer(object):
                     'state_dict': self.model.state_dict(),
                     'optimizer': self.optimizer.state_dict()
                     }, save_path)
-
 
 ##========================== initial state
 
