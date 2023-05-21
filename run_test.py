@@ -18,11 +18,11 @@ from modules.predict import predict
 
 
 #root=Path(__file__).parent.resolve()
-root=Path(".")
+root=Path("/scratch1/99999/malb23/ASC22050/SR_Dataset_v1/cresis-data")
 
 tag='last_experiment'
 #%%
-test_dataset=SnowData(root=root,lst='.\data\test.lst')
+test_dataset=SnowData(root=root,lst='./data/test.lst')
 test_loader= DataLoader(test_dataset, batch_size=1)
     #test_root= Path('G:/My Drive/BinaLab/Datasets/Cresis/2012_main/test/image')
 
