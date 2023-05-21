@@ -42,6 +42,7 @@ class Network(object):
 class Trainer(object):
     def __init__(self, args, net, train_sampler, train_loader, val_loader=None):
         super(Trainer, self).__init__()
+
         self.model=net.model
 
         self.train_loader = train_loader
@@ -83,12 +84,9 @@ class Trainer(object):
 
         self.writer = SummaryWriter(args.log_dir) if args.verbose else None
 
-
-
     def train(self, save_dir, epoch):
 
         self.train_sampler.set_epoch(epoch)
-
         ## initilization
         losses = Averagvalue()
         epoch_loss = []
@@ -102,8 +100,9 @@ class Trainer(object):
             for batch in self.train_loader:
 
                 data, label, image_name = batch['data'], batch['label'], batch['id'][0]
-
-                if self.use_cuda:
+                
+                
+                if torch.cuda.is_available():
                     for key in data:
                         data[key] = data[key].cuda()
                     label = label.cuda()
@@ -112,8 +111,8 @@ class Trainer(object):
 
                 ## forward
                 outputs = self.model(data)
-
                 ## loss
+
 
                 if self.use_cuda:
                     loss = torch.zeros(1).cuda()
@@ -122,19 +121,19 @@ class Trainer(object):
 
 
                 for o in outputs:
-                    loss = loss + cross_entropy_loss(o, label)
+                    loss = loss+cross_entropy_loss(o, label)
                 #loss=self.loss_w(loss_r)
 
                 counter += 1
                 loss = loss / self.itersize
                 loss.backward()
 
-                # SGD step
+                # SDG step
                 if counter == self.itersize:
                     self.optimizer.step()
                     self.optimizer.zero_grad()
                     counter = 0
-                    # Adjust learning rate
+                    #adjust learnig rate
                     self.scheduler.step()
                     self.global_step += 1
 
@@ -142,6 +141,8 @@ class Trainer(object):
                 losses.update(loss.item(), image.size(0))
                 epoch_loss.append(loss.item())
 
+                if self.writer is not None:
+                    self.writer.add_scalar('Loss/train', loss.item(), self.global_step)
                 pbar.set_postfix(**{'loss (batch)': loss.item()})
                 pbar.update(image.shape[0])
 
@@ -192,7 +193,7 @@ class Trainer(object):
             
             if torch.cuda.is_available():
                 for key in data:
-                    data[key] = data[key].cuda()
+                    data[key]=data[key].cuda()
 
             
                 label = label.cuda()
@@ -321,3 +322,4 @@ def tensor2image(image):
             result = (result * 255).astype(np.uint8, copy=False)
             #(torch.squeeze(o.detach()).cpu().numpy()*255).astype(np.uint8, copy=False)
             return result
+
