@@ -21,10 +21,12 @@ class Network(object):
         super(Network, self).__init__()
         # a necessary class for initialization and pretraining, there are precision issues when import model directly
 
-        self.model = model
-
         if args.weights_init_on:
             self.model.apply(weights_init)
+
+        # if args.pretrained_path is not None:
+        #     self.model.apply(weights_init)
+        #     vgg_pretrain(model=model, pretrained_path=args.pretrained_path)
 
         if args.resume_path is not None:
             resume(model=model, resume_path=args.resume_path)
@@ -87,12 +89,12 @@ class Trainer(object):
         # Set the epoch for the train sampler
         self.train_sampler.set_epoch(epoch)
 
-        # Initialize metrics for tracking train loss and accuracy
-        losses = Averagvalue() # Average loss value across batches
-        epoch_loss = []  # List to store the loss for each epoch
-        val_losses = Averagvalue()  # Average validation loss value across batches
-        epoch_val_loss = []  # List to store the validation loss for each epoch
-        counter = 0  # Counter to track iterations within an epoch
+        ## initilization
+        losses = Averagvalue()
+        epoch_loss = []
+        val_losses = Averagvalue()
+        epoch_val_loss = []
+        counter = 0
 
         # Initialize a progress bar using tqdm
         with tqdm(total=self.n_train, desc=f'Epoch {epoch + 1}/{self.max_epoch}', unit='img') as pbar:
@@ -120,6 +122,7 @@ class Trainer(object):
                     loss = torch.zeros(1)
                 for o in outputs:
                     loss = loss + cross_entropy_loss(o, label)
+                #loss=self.loss_w(loss_r)
                 counter += 1
                 loss = loss / self.itersize
                 loss.backward()
