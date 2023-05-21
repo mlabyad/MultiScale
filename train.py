@@ -33,7 +33,7 @@ tag = datetime.now().strftime("%y%m%d-%H%M%S")
 params={
      'root': root,
      'trainlist':Path('./data/train.lst'),
-     'devlist':None,
+     'devlist':Path('./data/test.lst'),
      'tmp': Path(f'../tmp/{tag}'), ##os.getcwd()
      'log_dir': Path(f'../logs/{tag}'),
      'val_percent': 0,
