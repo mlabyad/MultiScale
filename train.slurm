@@ -39,4 +39,4 @@ pwd
 date
 
 # Launch serial code...
-python3 train.py
+python train.py
