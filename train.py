@@ -57,8 +57,8 @@ args= struct(**params)
 
 def main():
 
-    # if not isdir(args.tmp):
-    #     os.makedirs(args.tmp)
+    if not isdir(args.tmp):
+        os.makedirs(args.tmp)
 
     # define network
     net=Network(args, model=msNet())
