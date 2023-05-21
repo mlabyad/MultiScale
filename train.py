@@ -102,6 +102,7 @@ def main():
     # Start time
     start = time.time()
 
+    # switch to train mode: not needed!  model.train()
     for epoch in range(args.start_epoch, args.max_epoch):
         ## initial log (optional:sample36)
         if (epoch == 0) and (args.devlist is not None):
