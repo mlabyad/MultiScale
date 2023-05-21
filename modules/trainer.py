@@ -6,18 +6,18 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-
 #import logging
-import torch
 from tqdm import tqdm
+from torch.utils.tensorboard import SummaryWriter
+#from torch.utils.data import DataLoader, random_split
+import torch.nn as nn
+
 from torch.optim import lr_scheduler
 #import torchvision
-from torch.utils.tensorboard import SummaryWriter
 import cv2
 
 
 from os.path import join, split, isdir, isfile, splitext
-from modules.functions import   cross_entropy_loss
 
 #from modules.models_aux import  weights_init #, convert_vgg 
 from modules.functions import   cross_entropy_loss # sigmoid_cross_entropy_loss
@@ -27,8 +27,6 @@ from modules.utils import Averagvalue #, save_checkpoint
 
 #from tensorboardX import SummaryWriter
 
-sys.path.append('..')
-from modules.utils import Averagvalue
 
 
 class Network(object):

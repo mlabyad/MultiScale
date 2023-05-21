@@ -111,7 +111,7 @@ def main():
     
         ## dev check (optional:sample36)
         if args.devlist is not None:
-            trainer.dev(dev_loader=dev_loader, save_dir = join(args.tmp, f'testing-record-epoch-{epoch+1}'), epoch=epoch)
+            trainer.dev(dev_loader=dev_loader,save_dir = join(args.tmp, f'testing-record-epoch-{epoch+1}'), epoch=epoch)
         
-if __name__ == '__main__': 
+if __name__ == '__main__':
     main()
