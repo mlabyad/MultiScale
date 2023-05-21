@@ -181,15 +181,15 @@ class Trainer(object):
                     dev_checkpoint(save_dir=join(save_dir, f'training-epoch-{epoch+1}-record'),
                                i=self.global_step, epoch=epoch, image_name=image_name, outputs= outputs)
 
-            self.save_state(epoch, save_path=join(save_dir, f'checkpoint_epoch{epoch+1}.pth'))
-            if self.writer is not None:
-                self.writer.add_scalar('Loss_avg', losses.avg, epoch+1)
-            self.train_loss.append(losses.avg)
-            self.train_loss_detail += epoch_loss
-            if self.writer is not None:
-                if val_losses.count>0:
-                    self.writer.add_scalar('Val_Loss_avg', val_losses.avg, epoch+1)
-                self.writer.add_scalar('learning_rate', self.optimizer.param_groups[0]['lr'], self.global_step)
+        self.save_state(epoch, save_path=join(save_dir, f'checkpoint_epoch{epoch+1}.pth'))
+        if self.writer is not None:
+            self.writer.add_scalar('Loss_avg', losses.avg, epoch+1)
+        self.train_loss.append(losses.avg)
+        self.train_loss_detail += epoch_loss
+        if self.writer is not None:
+            if val_losses.count>0:
+                self.writer.add_scalar('Val_Loss_avg', val_losses.avg, epoch+1)
+            self.writer.add_scalar('learning_rate', self.optimizer.param_groups[0]['lr'], self.global_step)
 
 
     def dev(self,dev_loader, save_dir, epoch):
