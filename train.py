@@ -90,8 +90,8 @@ def main():
     # Get data loaders for training and validation datasets
     train_sampler, train_loader, _, dev_loader = data_loader.get_data(args)
 
-    # Instantiate the model
-    net = Network(args, model=msNet())
+    # define network
+    net=Network(args, model=msNet())
 
     # Create log directory
     os.makedirs(args.log_dir, exist_ok=True)
@@ -99,17 +99,18 @@ def main():
     # Start time
     start = time.time()
 
-    # Training loop
+    # switch to train mode: not needed!  model.train()
     trainer = Trainer(args, net, train_sampler=train_sampler, train_loader=train_loader)
     for epoch in range(args.start_epoch, args.max_epoch):
         ## initial log (optional:sample36)
         if (epoch == 0) and (args.devlist is not None):
             print("Performing initial testing...")
             trainer.test(dev_loader=dev_loader, save_dir = join(args.tmp, 'testing-record-0-initial'), epoch=epoch)
-        # Perform training step
+    
+        ## training
         trainer.train(save_dir = args.tmp, epoch=epoch)
         
-        # Evaluate model on validation set
+        ## dev check (optional:sample36)
         if args.devlist is not None:
             trainer.test(dev_loader=dev_loader, save_dir = join(args.tmp, f'testing-record-epoch-{epoch+1}'), epoch=epoch)
 
