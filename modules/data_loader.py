@@ -14,6 +14,7 @@ from modules.transforms import Fliplr, Rescale_byrate
 from torch.utils.data import DataLoader, ConcatDataset
 import cv2
 import os
+
 import pandas as pd
 
 
@@ -70,7 +71,7 @@ class SnowData(D.Dataset):
             return {'data': data, 'label': ctour, 'id': data_id}
         else:    
             return {'data': data,  'id': data_id}            
-
+        
 def prepare_img(img):
         img=np.array(img, dtype=np.float32)
         #img=np.expand_dims(img,axis=2)
