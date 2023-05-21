@@ -81,6 +81,7 @@ class Trainer(object):
 
         self.optimizer = torch.optim.SGD(tuned_lrs, lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
 
+
         self.scheduler = lr_scheduler.StepLR(self.optimizer, step_size=args.stepsize, gamma=args.gamma)
 
         self.writer = SummaryWriter(args.log_dir) if args.verbose else None
@@ -102,7 +103,7 @@ class Trainer(object):
 
                 data, label, image_name= batch['data'], batch['label'], batch['id'][0]
                 
-
+                
                 if torch.cuda.is_available():
                     for key in data:
                         data[key]=data[key].cuda()

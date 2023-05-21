@@ -99,17 +99,17 @@ def main():
     # Start time
     start = time.time()
 
-    # switch to train mode: not needed!  model.train()
+    # define trainer
     trainer = Trainer(args, net, train_sampler=train_sampler, train_loader=train_loader)
     for epoch in range(args.start_epoch, args.max_epoch):
         ## initial log (optional:sample36)
         if (epoch == 0) and (args.devlist is not None):
             print("Performing initial testing...")
-            trainer.test(dev_loader=dev_loader, save_dir = join(args.tmp, 'testing-record-0-initial'), epoch=epoch)
+            trainer.test(dev_loader=dev_loader,save_dir = join(args.tmp, 'testing-record-0-initial'), epoch=epoch)
     
         ## training
         trainer.train(save_dir = args.tmp, epoch=epoch)
-        
+    
         ## dev check (optional:sample36)
         if args.devlist is not None:
             trainer.test(dev_loader=dev_loader, save_dir = join(args.tmp, f'testing-record-epoch-{epoch+1}'), epoch=epoch)
