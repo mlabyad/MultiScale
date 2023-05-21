@@ -21,6 +21,13 @@ class Network(object):
         super(Network, self).__init__()
         # a necessary class for initialization and pretraining, there are precision issues when import model directly
 
+        # Wrap the model with DistributedDataParallel for distributed training
+        self.model = torch.nn.parallel.DistributedDataParallel(self.model, device_ids=[args.local_rank])
+
+        # Set the device (CPU or CUDA) for the model
+        device = 'cpu' if not args.cuda else 'cuda' 
+        self.model.to(device)
+
         if args.weights_init_on:
             self.model.apply(weights_init)
 
@@ -30,13 +37,6 @@ class Network(object):
 
         if args.resume_path is not None:
             resume(model=model, resume_path=args.resume_path)
-
-        # Set the device (CPU or CUDA) for the model
-        device = 'cpu' if not args.cuda else 'cuda' 
-        self.model.to(device)
-
-        # Wrap the model with DistributedDataParallel for distributed training
-        self.model = torch.nn.parallel.DistributedDataParallel(self.model, device_ids=[args.local_rank])
 
 
 class Trainer(object):

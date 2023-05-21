@@ -27,7 +27,7 @@ test_loader= DataLoader(test_dataset, batch_size=1)
     #test_root= Path('G:/My Drive/BinaLab/Datasets/Cresis/2012_main/test/image')
 
 #restore_path=Path(f'../tmp/{tag}/checkpoint_epoch{args.max_epoch}.pth')
-max_epoch=1
+max_epoch=15
 restore_path=Path(f'../tmp/{tag}/checkpoint_epoch{max_epoch}.pth')
 save_dir=Path(f'../{tag}/test_result')
 
