@@ -103,6 +103,7 @@ def main():
     args.max_epoch = 1
     args.start_epoch = 0
     args.resume_path = None
+    args.weights_init_on = None
 
     # Get data loaders for training and validation datasets
     train_sampler, train_loader, _, dev_loader = datasets.get_cifar(args)
