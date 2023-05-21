@@ -185,16 +185,11 @@ class Trainer(object):
 
             data, label, image_name= batch['data'], batch['label'], batch['id'][0]
 
-            if self.use_cuda:
-                for key in data:
-                    data[key] = data[key].cuda()
-                label = label.cuda()
-
             _, _, H, W = data['image'].shape
 
             if torch.cuda.is_available():
                 for key in data:
-                    data[key]=data[key].cuda()
+                    data[key] = data[key].cuda()
                 label = label.cuda()
 
             with torch.no_grad():
@@ -212,11 +207,11 @@ class Trainer(object):
 
 
     def save_state(self, epoch, save_path='checkpoint.pth'):
-            torch.save({
-                        'epoch': epoch,
-                        'state_dict': self.model.state_dict(),
-                        'optimizer': self.optimizer.state_dict()
-                        }, save_path)
+        torch.save({
+                    'epoch': epoch,
+                    'state_dict': self.model.state_dict(),
+                    'optimizer': self.optimizer.state_dict()
+                    }, save_path)
 
 
 ##========================== initial state
@@ -250,12 +245,14 @@ def resume(model, resume_path):
     else:
         print("=> no checkpoint found at '{}'".format(resume_path))
 
+
 ##========================== adjusting lrs
 
 def tune_lrs(model, lr, weight_decay):
 
     bias_params= [param for name,param in list(model.named_parameters()) if name.find('bias')!=-1]
     weight_params= [param for name,param in list(model.named_parameters()) if name.find('weight')!=-1]
+
 
     if len(weight_params)==19:
         down1_4_weights , down1_4_bias  = weight_params[0:10]  , bias_params[0:10]
@@ -294,7 +291,9 @@ def tune_lrs(model, lr, weight_decay):
         print('Warning in tune_lrs')
         return model.parameters()
 
+    
     return  tuned_lrs
+
 
 ##=========================== train_split func
 
