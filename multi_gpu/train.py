@@ -9,7 +9,7 @@ import torch.distributed as dist
 from os.path import join, isdir
 from msnet import msNet
 import modules.datasets as datasets
-from modules.trainer import Trainer
+from modules.trainer import Trainer, Network
 from pathlib import Path
 
 
@@ -108,16 +108,7 @@ def main():
     train_sampler, train_loader, _, dev_loader = datasets.get_cifar(args)
 
     # Instantiate the model
-    model = model=msNet()
-
-    # Set the device (CPU or CUDA) for the model
-    device = 'cpu' if not args.cuda else 'cuda' 
-    model.to(device)
-
-    # Wrap the model with DistributedDataParallel for distributed training
-    model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.local_rank])
-    if args.resume_path is not None:
-        trainer.resume(model=model, resume_path=args.resume_path)
+    net = Network(args, model=msNet())
 
     # Create log directory and set checkpoint format
     os.makedirs(args.log_dir, exist_ok=True)
@@ -137,7 +128,7 @@ def main():
     start = time.time()
 
     # Training loop
-    trainer = Trainer(args, model, train_sampler=train_sampler, train_loader=train_loader)
+    trainer = Trainer(args, net, train_sampler=train_sampler, train_loader=train_loader)
     for epoch in range(args.start_epoch, args.max_epoch):
         ## initial log (optional:sample36)
         if (epoch == 0) and (args.devlist is not None):

@@ -3,6 +3,7 @@ import torch
 from tqdm import tqdm
 import os
 import numpy as np
+import torch.nn as nn
 import torch
 from tqdm import tqdm
 from torch.optim import lr_scheduler
@@ -14,10 +15,32 @@ from modules.functions import   cross_entropy_loss # sigmoid_cross_entropy_loss
 sys.path.append('..')
 from modules.utils import accuracy, Averagvalue
 
+
+class Network(object):
+    def __init__(self, args, model):
+        super(Network, self).__init__()
+        # a necessary class for initialization and pretraining, there are precision issues when import model directly
+
+        self.model = model
+
+        if args.weights_init_on:
+            self.model.apply(weights_init)
+
+        if args.resume_path is not None:
+            resume(model=model, resume_path=args.resume_path)
+
+        # Set the device (CPU or CUDA) for the model
+        device = 'cpu' if not args.cuda else 'cuda' 
+        self.model.to(device)
+
+        # Wrap the model with DistributedDataParallel for distributed training
+        self.model = torch.nn.parallel.DistributedDataParallel(self.model, device_ids=[args.local_rank])
+
+
 class Trainer(object):
-    def __init__(self, args, model, train_sampler, train_loader, val_loader=None):
+    def __init__(self, args, net, train_sampler, train_loader, val_loader=None):
         super(Trainer, self).__init__()
-        self.model=model
+        self.model = net.model
 
         self.train_loader = train_loader
         self.train_sampler = train_sampler
@@ -27,7 +50,7 @@ class Trainer(object):
         if val_loader is not None:
             self.n_val = len(val_loader)
         else:
-            self.n_val=0
+            self.n_val = 0
 
         self.n_dataset = self.n_train+self.n_val
         self.global_step = 0
@@ -184,6 +207,28 @@ def save_state(model, optimizer, epoch, save_path='checkpoint.pth'):
                     'state_dict': model.state_dict(),
                     'optimizer': optimizer.state_dict()
                     }, save_path)
+
+
+##========================== initial state
+
+def weights_init(m):
+    """ Weight initialization function. """
+    if isinstance(m, nn.Conv2d):
+        # Initialize: m.weight.
+        # xavier(m.weight.data) #init 1
+        #m.weight.data.normal_(0, 0.01) #init 2
+        #init HED
+        if m.weight.data.shape == torch.Size([1, 5, 1, 1]):
+            # Constant initialization for fusion layer in HED network.
+            torch.nn.init.constant_(m.weight, 0.2)
+        else:
+            # Zero initialization following official repository.
+            # Reference: hed/docs/tutorial/layers.md
+            m.weight.data.zero_()
+        # Initialize: m.bias.
+        if m.bias is not None:
+            # Zero initialization.
+            m.bias.data.zero_()
 
 
 def resume(model, resume_path):
