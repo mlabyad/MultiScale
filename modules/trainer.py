@@ -162,28 +162,27 @@ class Trainer(object):
 
 
                 if (self.global_step >0) and (self.global_step % 500 ==0): #(self.n_dataset // (10 * self.batch_size)) == 0:
-                        ## logging
-                        for tag, value in self.model.named_parameters():
-                            tag = tag.replace('.', '/')
-                            if self.writer is not None:
-                                self.writer.add_histogram('weights/' + tag, value.data.cpu().numpy(), self.global_step)
-                                self.writer.add_histogram('grads/' + tag, value.grad.data.cpu().numpy(), self.global_step)
-
+                    ## logging
+                    for tag, value in self.model.named_parameters():
+                        tag = tag.replace('.', '/')
                         if self.writer is not None:
-                            self.writer.add_images('images', image, self.global_step)
-                            self.writer.add_images('masks/true', label, self.global_step)
-                            self.writer.add_images('masks/pred', outputs[-1] > 0.5, self.global_step)
+                            self.writer.add_histogram('weights/' + tag, value.data.cpu().numpy(), self.global_step)
+                            self.writer.add_histogram('grads/' + tag, value.grad.data.cpu().numpy(), self.global_step)
 
-                        outputs.append(label)
-                        outputs.append(image)
+                    if self.writer is not None:
+                        self.writer.add_images('images', image, self.global_step)
+                        self.writer.add_images('masks/true', label, self.global_step)
+                        self.writer.add_images('masks/pred', outputs[-1] > 0.5, self.global_step)
 
-                        dev_checkpoint(save_dir=join(save_dir, f'training-epoch-{epoch+1}-record'),
-                                    i=self.global_step, epoch=epoch, image_name=image_name, outputs= outputs)
+                    outputs.append(label)
+                    outputs.append(image)
+
+                    dev_checkpoint(save_dir=join(save_dir, f'training-epoch-{epoch+1}-record'),
+                                i=self.global_step, epoch=epoch, image_name=image_name, outputs= outputs)
 
             self.save_state(epoch, save_path=join(save_dir, f'checkpoint_epoch{epoch+1}.pth'))
             if self.writer is not None:
                 self.writer.add_scalar('Loss_avg', losses.avg, epoch+1)
-            # Update the training loss and accuracy for the current epoch
             self.train_loss.append(losses.avg)
             self.train_loss_detail += epoch_loss
             if self.writer is not None:
