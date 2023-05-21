@@ -37,7 +37,7 @@ def parse_args():
     parser.add_argument('--gamma', type=int, default=0.1, help='epochs between checkpoints')
     parser.add_argument('--weight-decay', type=int, default=0.0002)
     parser.add_argument('--itersize', type=int, default=10)
-    parser.add_argument('--max-epoch', type=int, default=1)
+    parser.add_argument('--max-epoch', type=int, default=15)
     parser.add_argument('--start-epoch', type=int, default=0)
     parser.add_argument('--resume-path', type=str, default=None)
     parser.add_argument('--weights-init-on', type=bool, default=False)
