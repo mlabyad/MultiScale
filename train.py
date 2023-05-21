@@ -35,7 +35,7 @@ def get_args():
           'root': root,
           'trainlist':Path('./data/train.lst'),
           'devlist':Path('./data/dev.lst'),
-          'tmp': Path(f'../tmp/{tag}'), ##os.getcwd()
+          'tmp': Path(f'../tmp/{tag}'),
           'log_dir': Path(f'../logs/{tag}'),
           'val_percent': 0,
           'start_epoch' : 0,
