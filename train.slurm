@@ -5,17 +5,15 @@
 #
 #------------------------------------------------------------------------------
 
-#SBATCH -J myjob           # Job name
-#SBATCH -o myjob.o%j       # Name of stdout output file
-#SBATCH -e myjob.e%j       # Name of stderr error file
+#SBATCH -J train           # Job name
+#SBATCH -o train.o%j       # Name of stdout output file
+#SBATCH -e train.e%j       # Name of stderr error file
 #SBATCH -p rtx           # Queue (partition) name
 #SBATCH -N 1               # Total # of nodes (must be 1 for serial)
 #SBATCH -n 4               # Total # of mpi tasks (should be 1 for serial)
 #SBATCH -t 9:00:00        # Run time (hh:mm:ss)
 #SBATCH --mail-type=all    # Send email at begin and end of job
 #SBATCH --mail-user=malb23@lehigh.edu
-
-mkdir -p sbatch_logs
 
 source /scratch1/99999/malb23/model/python-env1/bin/activate
 
