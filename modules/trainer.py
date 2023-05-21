@@ -169,6 +169,7 @@ class Trainer(object):
                             self.writer.add_histogram('weights/' + tag, value.data.cpu().numpy(), self.global_step)
                             self.writer.add_histogram('grads/' + tag, value.grad.data.cpu().numpy(), self.global_step)
 
+
                     if self.writer is not None:
                         self.writer.add_images('images', image, self.global_step)
                         self.writer.add_images('masks/true', label, self.global_step)
@@ -178,7 +179,7 @@ class Trainer(object):
                     outputs.append(image)
 
                     dev_checkpoint(save_dir=join(save_dir, f'training-epoch-{epoch+1}-record'),
-                                i=self.global_step, epoch=epoch, image_name=image_name, outputs= outputs)
+                               i=self.global_step, epoch=epoch, image_name=image_name, outputs= outputs)
 
             self.save_state(epoch, save_path=join(save_dir, f'checkpoint_epoch{epoch+1}.pth'))
             if self.writer is not None:
