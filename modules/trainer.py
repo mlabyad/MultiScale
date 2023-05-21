@@ -13,7 +13,7 @@ from os.path import join, split, isdir, isfile, splitext
 from modules.functions import   cross_entropy_loss # sigmoid_cross_entropy_loss
 
 sys.path.append('..')
-from modules.utils import accuracy, Averagvalue
+from modules.utils import Averagvalue
 
 
 class Network(object):
