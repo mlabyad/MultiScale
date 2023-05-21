@@ -96,15 +96,11 @@ class Trainer(object):
         epoch_val_loss = []
         counter = 0
 
-        # Initialize a progress bar using tqdm
         with tqdm(total=self.n_train, desc=f'Epoch {epoch + 1}/{self.max_epoch}', unit='img') as pbar:
-            # Iterate over batches in the train loader
             for batch in self.train_loader:
 
-                # Get data and label from the batch
                 data, label, image_name = batch['data'], batch['label'], batch['id'][0]
 
-                # Move data and label to the GPU if available
                 if self.use_cuda:
                     for key in data:
                         data[key] = data[key].cuda()
@@ -112,7 +108,7 @@ class Trainer(object):
 
                 image = data['image']
 
-                # Perform forward pass and calculate loss
+                ## forward
                 outputs = self.model(data)
 
                 ## loss
@@ -139,11 +135,10 @@ class Trainer(object):
                     self.global_step += 1
 
 
-                # Measure accuracy and record loss
+                # measure accuracy and record loss
                 losses.update(loss.item(), image.size(0))
                 epoch_loss.append(loss.item())
 
-                # Update the progress bar with relevant information
                 pbar.set_postfix(**{'loss (batch)': loss.item()})
                 pbar.update(image.shape[0])
 
