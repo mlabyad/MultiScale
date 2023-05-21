@@ -115,20 +115,20 @@ class Trainer(object):
 
                 ## loss
                 if self.use_cuda:
-                    loss = torch.zeros(1).cuda()  # Initialize loss as zero on GPU
+                    loss = torch.zeros(1).cuda()
                 else:
-                    loss = torch.zeros(1)  # Initialize loss as zero on CPU
+                    loss = torch.zeros(1)
                 for o in outputs:
-                    loss = loss + cross_entropy_loss(o, label)  # Compute the cross-entropy loss for each output
+                    loss = loss + cross_entropy_loss(o, label)
                 counter += 1
-                loss = loss / self.itersize  # Average the loss across iterations
-                loss.backward()  # Backpropagate the loss
+                loss = loss / self.itersize
+                loss.backward()
 
 
                 # SGD step
                 if counter == self.itersize:
-                    self.optimizer.step()  # Update model parameters using the optimizer
-                    self.optimizer.zero_grad()  # Reset gradients
+                    self.optimizer.step()
+                    self.optimizer.zero_grad()
                     counter = 0
                     
                     # Adjust learning rate
@@ -137,12 +137,12 @@ class Trainer(object):
 
 
                 # Measure accuracy and record loss
-                losses.update(loss.item(), image.size(0))  # Update the average loss value
-                epoch_loss.append(loss.item())  # Append the loss to the list for the current epoch
+                losses.update(loss.item(), image.size(0))
+                epoch_loss.append(loss.item())
 
                 # Update the progress bar with relevant information
-                pbar.set_postfix(**{'loss (batch)': loss.item()})  # Update the progress bar with the current batch loss
-                pbar.update(image.shape[0])  # Move the progress bar forward by the size of the current batch
+                pbar.set_postfix(**{'loss (batch)': loss.item()})
+                pbar.update(image.shape[0])
 
                 if (self.global_step >0) and (self.global_step % 500 ==0): #(self.n_dataset // (10 * self.batch_size)) == 0:
                         ## logging
@@ -163,7 +163,7 @@ class Trainer(object):
                         dev_checkpoint(save_dir=join(save_dir, f'training-epoch-{epoch+1}-record'),
                                     i=self.global_step, epoch=epoch, image_name=image_name, outputs= outputs)
 
-            save_state(self.model, self.optimizer, epoch, save_path=join(save_dir, f'checkpoint_epoch{epoch+1}.pth'))
+            self.save_state(self.model, self.optimizer, epoch, save_path=join(save_dir, f'checkpoint_epoch{epoch+1}.pth'))
             if self.writer is not None:
                 self.writer.add_scalar('Loss_avg', losses.avg, epoch+1)
             # Update the training loss and accuracy for the current epoch
@@ -175,7 +175,7 @@ class Trainer(object):
                 self.writer.add_scalar('learning_rate', self.optimizer.param_groups[0]['lr'], self.global_step)
 
 
-    def test(self, epoch, dev_loader, save_dir):
+    def test(self, dev_loader, save_dir, epoch):
         print("Running test ========= >")
         self.model.eval()
         for idx, batch in enumerate(dev_loader):
@@ -201,12 +201,19 @@ class Trainer(object):
             outputs.append(label)
             dev_checkpoint(save_dir, -1, epoch, image_name, outputs)
 
-def save_state(model, optimizer, epoch, save_path='checkpoint.pth'):
-        torch.save({
-                    'epoch': epoch,
-                    'state_dict': model.state_dict(),
-                    'optimizer': optimizer.state_dict()
-                    }, save_path)
+            # result=tensor2image(results[-1])
+            # result_b=tensor2image(1-results[-1])
+
+            # cv2.imwrite(join(save_dir, f"{image_id}.png".replace('image','fuse')), result)
+            # cv2.imwrite(join(save_dir, f"{image_id}.jpg".replace('image','fuse')), result_b)
+
+
+    def save_state(self, epoch, save_path='checkpoint.pth'):
+            torch.save({
+                        'epoch': epoch,
+                        'state_dict': self.model.state_dict(),
+                        'optimizer': self.optimizer.state_dict()
+                        }, save_path)
 
 
 ##========================== initial state
@@ -239,29 +246,6 @@ def resume(model, resume_path):
         print("=> loaded checkpoint '{}'".format(resume_path))
     else:
         print("=> no checkpoint found at '{}'".format(resume_path))
-
-##=========================== train_split func
-
-def dev_checkpoint(save_dir, i, epoch, image_name, outputs):
-    # display and logging
-    os.makedirs(save_dir, exist_ok=True)
-    outs=[]
-    for o in outputs:
-        outs.append(tensor2image(o))
-    if len(outs[-1].shape)==3:
-        outs[-1]=outs[-1][0,:,:] #if RGB, show one layer only
-    if i==-1:
-        output_name=f"{image_name}.jpg"
-    else:
-        output_name=f"global_step-{i}-{image_name}.jpg"
-    out=cv2.hconcat(outs) # if gray
-    cv2.imwrite(join(save_dir, output_name), out)
-
-def tensor2image(image):
-            result = torch.squeeze(image.detach()).cpu().numpy()
-            result = (result * 255).astype(np.uint8, copy=False)
-            #(torch.squeeze(o.detach()).cpu().numpy()*255).astype(np.uint8, copy=False)
-            return result
 
 ##========================== adjusting lrs
 
@@ -308,3 +292,26 @@ def tune_lrs(model, lr, weight_decay):
         return model.parameters()
 
     return  tuned_lrs
+
+##=========================== train_split func
+
+def dev_checkpoint(save_dir, i, epoch, image_name, outputs):
+    # display and logging
+    os.makedirs(save_dir, exist_ok=True)
+    outs=[]
+    for o in outputs:
+        outs.append(tensor2image(o))
+    if len(outs[-1].shape)==3:
+        outs[-1]=outs[-1][0,:,:] #if RGB, show one layer only
+    if i==-1:
+        output_name=f"{image_name}.jpg"
+    else:
+        output_name=f"global_step-{i}-{image_name}.jpg"
+    out=cv2.hconcat(outs) # if gray
+    cv2.imwrite(join(save_dir, output_name), out)
+
+def tensor2image(image):
+            result = torch.squeeze(image.detach()).cpu().numpy()
+            result = (result * 255).astype(np.uint8, copy=False)
+            #(torch.squeeze(o.detach()).cpu().numpy()*255).astype(np.uint8, copy=False)
+            return result

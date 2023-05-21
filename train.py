@@ -104,13 +104,13 @@ def main():
         ## initial log (optional:sample36)
         if (epoch == 0) and (args.devlist is not None):
             print("Performing initial testing...")
-            trainer.test(dev_loader=dev_loader,save_dir = join(args.tmp, 'testing-record-0-initial'), epoch=epoch)
+            trainer.test(dev_loader=dev_loader, save_dir = join(args.tmp, 'testing-record-0-initial'), epoch=epoch)
         # Perform training step
         trainer.train(save_dir = args.tmp, epoch=epoch)
         
         # Evaluate model on validation set
         if args.devlist is not None:
-            trainer.test(dev_loader=dev_loader,save_dir = join(args.tmp, f'testing-record-epoch-{epoch+1}'), epoch=epoch)
+            trainer.test(dev_loader=dev_loader, save_dir = join(args.tmp, f'testing-record-epoch-{epoch+1}'), epoch=epoch)
 
     # Print total training time if verbose is True
     if args.verbose:

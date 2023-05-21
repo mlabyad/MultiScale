@@ -1,34 +1,15 @@
+import os, sys
 import torch
-import torch.nn.functional as F
+#import numpy as np
+#import scipy.io as sio
+import argparse
+from os.path import join, isfile #split, abspath, splitext, split, isdir, isfile
 
-def accuracy(output, target):
-    pred = output.max(1, keepdim=True)[1]
-    return pred.eq(target.view_as(pred)).float().mean()
 
-def save_checkpoint(model, optimizer, preconditioner, schedulers, filepath):
-    state = {
-        'model': model.state_dict(),
-        'optimizer': optimizer.state_dict(),
-        'preconditioner': preconditioner.state_dict()
-                if preconditioner is not None else None,
-        'schedulers': [s.state_dict() for s in schedulers]
-                if isinstance(schedulers, list) else None
-    }
-    torch.save(state, filepath)
 
-class LabelSmoothLoss(torch.nn.Module):
-    
-    def __init__(self, smoothing=0.0):
-        super(LabelSmoothLoss, self).__init__()
-        self.smoothing = smoothing
-    
-    def forward(self, input, target):
-        log_prob = F.log_softmax(input, dim=-1)
-        weight = input.new_ones(input.size()) * \
-            self.smoothing / (input.size(-1) - 1.)
-        weight.scatter_(-1, target.unsqueeze(-1), (1. - self.smoothing))
-        loss = (-weight * log_prob).sum(dim=-1).mean()
-        return loss
+class struct:
+    def __init__(self, **entries):
+        self.__dict__.update(entries)
 
 class Averagvalue(object):
     """Computes and stores the average and current value"""
