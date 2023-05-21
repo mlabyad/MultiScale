@@ -69,7 +69,7 @@ class Trainer(object):
         self.max_epoch=args.max_epoch
     
 
-        self.use_cuda = torch.cuda.is_available()
+        self.use_cuda=torch.cuda.is_available()
 
         # training args
         self.itersize=args.itersize
@@ -84,9 +84,9 @@ class Trainer(object):
         self.writer = SummaryWriter(args.log_dir) if args.verbose else None
 
 
+
     def train(self, save_dir, epoch):
 
-        # Set the epoch for the train sampler
         self.train_sampler.set_epoch(epoch)
 
         ## initilization
@@ -96,13 +96,12 @@ class Trainer(object):
         val_losses = Averagvalue()
         epoch_val_loss = []
 
+
         counter = 0
         with tqdm(total=self.n_train, desc=f'Epoch {epoch + 1}/{self.max_epoch}', unit='img') as pbar:
             for batch in self.train_loader:
 
                 data, label, image_name = batch['data'], batch['label'], batch['id'][0]
-
-
 
                 if self.use_cuda:
                     for key in data:
@@ -115,28 +114,29 @@ class Trainer(object):
                 outputs = self.model(data)
 
                 ## loss
+
                 if self.use_cuda:
                     loss = torch.zeros(1).cuda()
                 else:
                     loss = torch.zeros(1)
+
+
                 for o in outputs:
                     loss = loss + cross_entropy_loss(o, label)
                 #loss=self.loss_w(loss_r)
+
                 counter += 1
                 loss = loss / self.itersize
                 loss.backward()
-
 
                 # SGD step
                 if counter == self.itersize:
                     self.optimizer.step()
                     self.optimizer.zero_grad()
                     counter = 0
-                    
                     # Adjust learning rate
                     self.scheduler.step()
                     self.global_step += 1
-
 
                 # measure accuracy and record loss
                 losses.update(loss.item(), image.size(0))
@@ -144,6 +144,8 @@ class Trainer(object):
 
                 pbar.set_postfix(**{'loss (batch)': loss.item()})
                 pbar.update(image.shape[0])
+
+
 
                 if (self.global_step >0) and (self.global_step % 500 ==0): #(self.n_dataset // (10 * self.batch_size)) == 0:
                         ## logging
