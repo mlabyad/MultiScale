@@ -8,7 +8,7 @@ import torch
 import torch.distributed as dist
 from os.path import join, isdir
 from msnet import msNet
-import modules.datasets as datasets
+import modules.data_loader as data_loader
 from modules.trainer import Trainer, Network
 from pathlib import Path
 
@@ -88,7 +88,7 @@ def main():
     args.verbose = True if dist.get_rank() == 0 else False
 
     # Get data loaders for training and validation datasets
-    train_sampler, train_loader, _, dev_loader = datasets.get_cifar(args)
+    train_sampler, train_loader, _, dev_loader = data_loader.get_data(args)
 
     # Instantiate the model
     net = Network(args, model=msNet())
