@@ -184,7 +184,7 @@ def main():
     args.train_loss = []
     args.train_loss_detail = []
     args.writer = SummaryWriter(args.log_dir) if args.verbose else None
-    args.max_epoch = 2
+    args.max_epoch = 1
     args.start_epoch = 0
     args.n_train = len(train_loader)
     for epoch in range(args.start_epoch, args.max_epoch):
