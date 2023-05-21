@@ -95,7 +95,8 @@ def main():
     args.root = Path("/scratch1/99999/malb23/ASC22050/SR_Dataset_v1/cresis-data")
     args.trainlist = Path("./data/train.lst")
     args.devlist = Path("./data/dev.lst")
-    tag = datetime.datetime.now().strftime("%y%m%d-%H%M%S")
+    # tag = datetime.datetime.now().strftime("%y%m%d-%H%M%S")
+    tag = 'last_experiment'
     args.tmp = Path(f'../tmp/{tag}')
     args.log_dir = Path(f'../logs/{tag}')
     args.itersize = 10
