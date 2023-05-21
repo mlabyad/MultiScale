@@ -39,7 +39,6 @@ def parse_args():
     parser.add_argument('--itersize', type=int, default=10)
     parser.add_argument('--max-epoch', type=int, default=1)
     parser.add_argument('--start-epoch', type=int, default=0)
-    parser.add_argument('--start-epoch', type=int, default=0)
     parser.add_argument('--resume-path', type=str, default=None)
     parser.add_argument('--weights-init-on', type=bool, default=False)
 
