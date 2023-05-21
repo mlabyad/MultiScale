@@ -99,9 +99,6 @@ def main():
     # define trainer
     trainer=Trainer(args, net, train_sampler=train_sampler, train_loader=train_loader)
 
-    # Start time
-    start = time.time()
-
     # switch to train mode: not needed!  model.train()
     for epoch in range(args.start_epoch, args.max_epoch):
         ## initial log (optional:sample36)
@@ -115,11 +112,6 @@ def main():
         ## dev check (optional:sample36)
         if args.devlist is not None:
             trainer.dev(dev_loader=dev_loader, save_dir = join(args.tmp, f'testing-record-epoch-{epoch+1}'), epoch=epoch)
-
-    # Print total training time
-    if args.verbose:
-        print('\nTraining time: {}'.format(datetime.timedelta(seconds=time.time() - start)))
-
-
+        
 if __name__ == '__main__': 
     main()

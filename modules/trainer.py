@@ -1,11 +1,11 @@
 import sys
-import torch
-from tqdm import tqdm
 import os
 import numpy as np
 #from PIL import Image
 #import time
+import torch
 import torch.nn as nn
+
 
 #import logging
 import torch
@@ -38,8 +38,6 @@ class Network(object):
 
         # Wrap the model with DistributedDataParallel for distributed training
         self.model = torch.nn.parallel.DistributedDataParallel(self.model, device_ids=[args.local_rank])
-
-
         if args.weights_init_on:
             self.model.apply(weights_init)
 
