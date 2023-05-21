@@ -39,10 +39,15 @@ def predict(model_type, restore_path, save_dir, test_loader , output_ext, input_
         raise('Restore path error!')
 
     if torch.cuda.is_available():
-        checkpoint=torch.load(restore_path)
+        checkpoint = torch.load(restore_path)
     else:
         checkpoint = torch.load(restore_path, map_location=torch.device('cpu'))
-    model.load_state_dict(checkpoint['state_dict'])
+    
+    # Handle the case when the model was saved using DataParallel
+    if 'module' in next(iter(checkpoint['state_dict'])):
+        state_dict = {k.replace('module.', ''): v for k, v in checkpoint['state_dict'].items()}
+
+    model.load_state_dict(state_dict)
     print("=> loaded checkpoint")
     
 
