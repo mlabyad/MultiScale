@@ -22,42 +22,38 @@ from torch.utils.data import DataLoader, ConcatDataset
 from datetime import datetime
 
 
-def get_args():
+root=Path("/scratch1/99999/malb23/ASC22050/SR_Dataset_v1/cresis-data")
+
+tag = datetime.now().strftime("%y%m%d-%H%M%S")
+print(tag)
 
 
-     root=Path("/scratch1/99999/malb23/ASC22050/SR_Dataset_v1/cresis-data")
+params={
+    'root': root,
+    'trainlist':Path('./data/train.lst'),
+    'devlist':Path('./data/dev.lst'),
+    'tmp': Path(f'../tmp/{tag}'),
+    'log_dir': Path(f'../logs/{tag}'),
+    'val_percent': 0,
+    'start_epoch' : 0,
+    'max_epoch' : 15,
+    'batch_size': 1,
+    'itersize': 10,
+    'stepsize': 1e4,
+    'lr': 1e-06,
+    'momentum': 0.9,
+    'weight_decay': 0.0002,
+    'gamma': 0.1,
+    'pretrained_path': None,
+    'resume_path': None,
+    'weights_init_on': False,
+    'multi_gpu': True
+    }
 
-     tag = datetime.now().strftime("%y%m%d-%H%M%S")
-     print(tag)
-
-
-     params={
-          'root': root,
-          'trainlist':Path('./data/train.lst'),
-          'devlist':Path('./data/dev.lst'),
-          'tmp': Path(f'../tmp/{tag}'),
-          'log_dir': Path(f'../logs/{tag}'),
-          'val_percent': 0,
-          'start_epoch' : 0,
-          'max_epoch' : 15,
-          'batch_size': 1,
-          'itersize': 10,
-          'stepsize': 1e4,
-          'lr': 1e-06,
-          'momentum': 0.9,
-          'weight_decay': 0.0002,
-          'gamma': 0.1,
-          'pretrained_path': None,
-          'resume_path': None,
-          'weights_init_on': False,
-          'multi_gpu': True
-          }
-
-     args= struct(**params)
-     return args
+args= struct(**params)
 
 
-def main(args):
+def main():
 
     
     if not isdir(args.tmp):
@@ -99,4 +95,4 @@ def main(args):
             trainer.dev(dev_loader=dev_loader,save_dir = join(args.tmp, f'testing-record-epoch-{epoch+1}'), epoch=epoch)
         
 if __name__ == '__main__':
-    args = get_args()
+    main()
