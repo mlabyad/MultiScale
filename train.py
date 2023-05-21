@@ -28,12 +28,13 @@ from datetime import datetime
 root=Path("/scratch1/99999/malb23/ASC22050/SR_Dataset_v1/cresis-data")
 
 tag = datetime.now().strftime("%y%m%d-%H%M%S")
-
+print(tag)
+print(root)
 
 params={
      'root': root,
      'trainlist':Path('./data/train.lst'),
-     'devlist':Path('./data/test.lst'),
+     'devlist':Path('./data/dev.lst'),
      'tmp': Path(f'../tmp/{tag}'), ##os.getcwd()
      'log_dir': Path(f'../logs/{tag}'),
      'val_percent': 0,
