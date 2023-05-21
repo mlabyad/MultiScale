@@ -42,22 +42,22 @@ class Network(object):
 class Trainer(object):
     def __init__(self, args, net, train_sampler, train_loader, val_loader=None):
         super(Trainer, self).__init__()
-        self.model = net.model
+        self.model=net.model
 
         self.train_loader = train_loader
         self.train_sampler = train_sampler
         self.val_loader = val_loader
 
-        self.n_train = len(train_loader)
+        self.n_train=len(train_loader)
         if val_loader is not None:
-            self.n_val = len(val_loader)
+            self.n_val=len(val_loader)
         else:
-            self.n_val = 0
+            self.n_val=0
 
-        self.n_dataset = self.n_train+self.n_val
+        self.n_dataset= self.n_train+self.n_val
         self.global_step = 0
 
-        self.batch_size = args.batch_size
+        self.batch_size=args.batch_size
 
         #losses
         self.train_loss = []
@@ -66,16 +66,16 @@ class Trainer(object):
         self.val_loss = []
         self.val_loss_detail = []
 
-        self.max_epoch = args.max_epoch
+        self.max_epoch=args.max_epoch
     
 
         self.use_cuda = torch.cuda.is_available()
 
         # training args
-        self.itersize = args.itersize
+        self.itersize=args.itersize
 
         #tune lr
-        tuned_lrs = tune_lrs(self.model,args.lr, args.weight_decay)
+        tuned_lrs=tune_lrs(self.model,args.lr, args.weight_decay)
 
         self.optimizer = torch.optim.SGD(tuned_lrs, lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
 
@@ -84,7 +84,7 @@ class Trainer(object):
         self.writer = SummaryWriter(args.log_dir) if args.verbose else None
 
 
-    def train(self, epoch, save_dir):
+    def train(self, save_dir, epoch):
 
         # Set the epoch for the train sampler
         self.train_sampler.set_epoch(epoch)
@@ -92,14 +92,17 @@ class Trainer(object):
         ## initilization
         losses = Averagvalue()
         epoch_loss = []
+
         val_losses = Averagvalue()
         epoch_val_loss = []
-        counter = 0
 
+        counter = 0
         with tqdm(total=self.n_train, desc=f'Epoch {epoch + 1}/{self.max_epoch}', unit='img') as pbar:
             for batch in self.train_loader:
 
                 data, label, image_name = batch['data'], batch['label'], batch['id'][0]
+
+
 
                 if self.use_cuda:
                     for key in data:

@@ -39,7 +39,7 @@ def predict(model_type, restore_path, save_dir, test_loader , output_ext, input_
         raise('Restore path error!')
 
     if torch.cuda.is_available():
-        checkpoint = torch.load(restore_path)
+        checkpoint=torch.load(restore_path)
     else:
         checkpoint = torch.load(restore_path, map_location=torch.device('cpu'))
     
