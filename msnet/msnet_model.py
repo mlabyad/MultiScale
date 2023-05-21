@@ -35,8 +35,8 @@ class msNet(nn.Module):
         self.up5 = Up(512,upscale=4)#stride=16
         
         self.fuse = OutConv(n_sides, uniform=True)
-
-
+        
+        
 
     def forward(self, data):
 
