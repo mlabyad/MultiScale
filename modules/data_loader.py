@@ -85,7 +85,6 @@ def prepare_ctour(ctour):
 
 
 
-
 def prepare_w(img):
         img=np.array(img, dtype=np.float32)
         img=np.expand_dims(img,axis=0)
