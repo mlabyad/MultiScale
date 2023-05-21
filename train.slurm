@@ -33,9 +33,10 @@
 
 # Any other commands must follow all #SBATCH directives...
 module list
+source /scratch1/99999/malb23/model/python-env1/bin/activate
 cd /scratch1/99999/malb23/model/github/seq/MultiScale
 pwd
 date
 
 # Launch serial code...
-python train.py
+python3 train.py
