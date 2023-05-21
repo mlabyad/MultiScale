@@ -22,42 +22,43 @@ from torch.utils.data import DataLoader, ConcatDataset
 from datetime import datetime
 
 
+def get_args():
 
 
+     root=Path("/scratch1/99999/malb23/ASC22050/SR_Dataset_v1/cresis-data")
 
-root=Path("/scratch1/99999/malb23/ASC22050/SR_Dataset_v1/cresis-data")
+     tag = datetime.now().strftime("%y%m%d-%H%M%S")
 
-tag = datetime.now().strftime("%y%m%d-%H%M%S")
-print(tag)
-print(root)
 
-params={
-     'root': root,
-     'trainlist':Path('./data/train.lst'),
-     'devlist':Path('./data/dev.lst'),
-     'tmp': Path(f'../tmp/{tag}'), ##os.getcwd()
-     'log_dir': Path(f'../logs/{tag}'),
-     'val_percent': 0,
-     'start_epoch' : 0,
-     'max_epoch' : 15,
-     'batch_size': 1,
-     'itersize': 10,
-     'stepsize': 1e4,
-     'lr': 1e-06,
-     'momentum': 0.9,
-     'weight_decay': 0.0002,
-     'gamma': 0.1,
-     'pretrained_path': None,
-     'resume_path': None,
-     'weights_init_on': False,
-     'multi_gpu': True
-     }
+     params={
+          'root': root,
+          'trainlist':Path('./data/train.lst'),
+          'devlist':Path('./data/dev.lst'),
+          'tmp': Path(f'../tmp/{tag}'), ##os.getcwd()
+          'log_dir': Path(f'../logs/{tag}'),
+          'val_percent': 0,
+          'start_epoch' : 0,
+          'max_epoch' : 15,
+          'batch_size': 1,
+          'itersize': 10,
+          'stepsize': 1e4,
+          'lr': 1e-06,
+          'momentum': 0.9,
+          'weight_decay': 0.0002,
+          'gamma': 0.1,
+          'pretrained_path': None,
+          'resume_path': None,
+          'weights_init_on': False,
+          'multi_gpu': True
+          }
 
-args= struct(**params)
+     args= struct(**params)
+     return args
 
 
 def main():
 
+    args = get_args()
     if not isdir(args.tmp):
         os.makedirs(args.tmp)
 
