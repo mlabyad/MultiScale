@@ -10,12 +10,9 @@ from os.path import join, isdir
 from msnet import msNet
 import modules.datasets as datasets
 from modules.trainer import Trainer
-import modules.trainer as trainer
-import modules.optimizers as optimizers
 from pathlib import Path
 
 from torchinfo import summary
-from torch.utils.tensorboard import SummaryWriter
 
 try:
     from torch.cuda.amp import autocast, GradScaler
@@ -44,7 +41,7 @@ def parse_args():
                         help='number of batches processed locally before '
                              'executing allreduce across workers; it multiplies '
                              'total batch size.')
-    parser.add_argument('--base-lr', type=float, default=1e-06, metavar='LR',
+    parser.add_argument('--lr', type=float, default=1e-06, metavar='LR',
                         help='base learning rate (default: 0.1)')
     parser.add_argument('--warmup-epochs', type=int, default=5, metavar='WE',
                         help='number of warmup epochs (default: 5)')
@@ -91,9 +88,9 @@ def main():
             torch.distributed.get_rank(), torch.distributed.get_world_size(),
             args.local_rank))
 
-    # Update args with backend, base_lr, verbose, and horovod properties
+    # Update args with backend, lr, verbose, and horovod properties
     args.backend = kfac.comm.backend
-    args.base_lr = args.base_lr * dist.get_world_size() * args.batches_per_allreduce
+    args.lr = args.lr * dist.get_world_size() * args.batches_per_allreduce
     args.verbose = True if dist.get_rank() == 0 else False
     args.horovod = False
 
