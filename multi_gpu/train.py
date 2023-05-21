@@ -12,7 +12,6 @@ import modules.datasets as datasets
 from modules.trainer import Trainer
 from pathlib import Path
 
-from torchinfo import summary
 
 try:
     from torch.cuda.amp import autocast, GradScaler
@@ -92,7 +91,6 @@ def main():
     args.backend = kfac.comm.backend
     args.lr = args.lr * dist.get_world_size() * args.batches_per_allreduce
     args.verbose = True if dist.get_rank() == 0 else False
-    args.horovod = False
 
     args.root = Path("/scratch1/99999/malb23/ASC22050/SR_Dataset_v1/cresis-data")
     args.trainlist = Path("./data/train.lst")
@@ -121,15 +119,6 @@ def main():
     # Create log directory and set checkpoint format
     os.makedirs(args.log_dir, exist_ok=True)
 
-    # Initialize resume_from_epoch to 0
-    args.resume_from_epoch = 0
-
-    # # Find the latest checkpoint and update resume_from_epoch if found
-    # for try_epoch in range(args.epochs, 0, -1):
-    #     if os.path.exists(args.checkpoint_format.format(epoch=try_epoch)):
-    #         args.resume_from_epoch = try_epoch
-    #         break
-    
     # Initialize scaler for mixed precision training
     scaler = None
     if args.fp16:
@@ -141,43 +130,10 @@ def main():
         scaler = GradScaler()
     args.grad_scaler = scaler
 
-    # # Load model, optimizer, preconditioner, and schedulers from checkpoint if resuming from a previous epoch
-    # if args.resume_from_epoch > 0:
-    #     # Get the file path of the checkpoint for the specified epoch
-    #     filepath = args.checkpoint_format.format(epoch=args.resume_from_epoch)
-        
-    #     # Define the mapping for loading the checkpoint on the appropriate device
-    #     map_location = {'cuda:0': 'cuda:{}'.format(args.local_rank)}
-        
-    #     # Load the checkpoint from the specified file path
-    #     checkpoint = torch.load(filepath, map_location=map_location)
-        
-    #     # Load the model's state dictionary from the checkpoint
-    #     model.module.load_state_dict(checkpoint['model'])
-        
-    #     # Load the optimizer's state dictionary from the checkpoint
-    #     optimizer.load_state_dict(checkpoint['optimizer'])
-        
-    #     # Load schedulers' state dictionaries if the checkpoint contains a list of schedulers
-    #     if isinstance(checkpoint['schedulers'], list):
-    #         for sched, state in zip(lr_schedules, checkpoint['schedulers']):
-    #             sched.load_state_dict(state)
-        
-    #     # Load preconditioner's state dictionary if the checkpoint contains a preconditioner and preconditioner is not None
-    #     if (checkpoint['preconditioner'] is not None and 
-    #             preconditioner is not None):
-    #         preconditioner.load_state_dict(checkpoint['preconditioner'])
-
     # Start time
     start = time.time()
 
     # Training loop
-    args.global_step = 0
-    args.train_loss = []
-    args.train_loss_detail = []
-    args.max_epoch = 1
-    args.start_epoch = 0
-    args.n_train = len(train_loader)
     trainer = Trainer(args, model, train_sampler=train_sampler, train_loader=train_loader)
     for epoch in range(args.start_epoch, args.max_epoch):
         ## initial log (optional:sample36)
