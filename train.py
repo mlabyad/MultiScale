@@ -87,32 +87,33 @@ def main():
     args.lr = args.lr * dist.get_world_size() * args.batches_per_allreduce
     args.verbose = True if dist.get_rank() == 0 else False
 
-    # Get data loaders for training and validation datasets
-    train_sampler, train_loader, _, dev_loader = data_loader.get_data(args)
+    # Create tmp directory
+    os.makedirs(args.tmp, exist_ok=True)
 
     # define network
     net=Network(args, model=msNet())
 
-    # Create log directory
-    os.makedirs(args.log_dir, exist_ok=True)
+    # Get data loaders for training and validation datasets
+    train_sampler, train_loader, _, dev_loader = data_loader.get_data(args)
+
+    # define trainer
+    trainer=Trainer(args, net, train_sampler=train_sampler, train_loader=train_loader)
 
     # Start time
     start = time.time()
 
-    # define trainer
-    trainer = Trainer(args, net, train_sampler=train_sampler, train_loader=train_loader)
     for epoch in range(args.start_epoch, args.max_epoch):
         ## initial log (optional:sample36)
         if (epoch == 0) and (args.devlist is not None):
             print("Performing initial testing...")
-            trainer.test(dev_loader=dev_loader,save_dir = join(args.tmp, 'testing-record-0-initial'), epoch=epoch)
+            trainer.dev(dev_loader=dev_loader,save_dir = join(args.tmp, 'testing-record-0-initial'), epoch=epoch)
     
         ## training
         trainer.train(save_dir = args.tmp, epoch=epoch)
     
         ## dev check (optional:sample36)
         if args.devlist is not None:
-            trainer.test(dev_loader=dev_loader, save_dir = join(args.tmp, f'testing-record-epoch-{epoch+1}'), epoch=epoch)
+            trainer.dev(dev_loader=dev_loader, save_dir = join(args.tmp, f'testing-record-epoch-{epoch+1}'), epoch=epoch)
 
     # Print total training time if verbose is True
     if args.verbose:

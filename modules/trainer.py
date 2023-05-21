@@ -181,7 +181,7 @@ class Trainer(object):
                 self.writer.add_scalar('learning_rate', self.optimizer.param_groups[0]['lr'], self.global_step)
 
 
-    def test(self, dev_loader, save_dir, epoch):
+    def dev(self, dev_loader, save_dir, epoch):
         print("Running test ========= >")
         self.model.eval()
         os.makedirs(save_dir, exist_ok=True)
