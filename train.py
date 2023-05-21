@@ -52,8 +52,8 @@ def parse_args():
     args.root = Path(args.root)
     args.trainlist = Path(args.trainlist)
     args.devlist = Path(args.devlist)
-    # tag = datetime.datetime.now().strftime("%y%m%d-%H%M%S")
-    tag = 'last_experiment'
+    tag = datetime.datetime.now().strftime("%y%m%d-%H%M%S")
+    # tag = 'last_experiment'
     args.tmp = Path(args.tmp.replace('tag', tag))
     args.log_dir = Path(args.log_dir.replace('tag', tag))
 
