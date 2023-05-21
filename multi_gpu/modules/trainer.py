@@ -5,6 +5,8 @@ import os
 import numpy as np
 import torch
 from tqdm import tqdm
+from torch.optim import lr_scheduler
+from torch.utils.tensorboard import SummaryWriter
 import cv2
 from os.path import join, split, isdir, isfile, splitext
 from modules.functions import   cross_entropy_loss # sigmoid_cross_entropy_loss
@@ -12,136 +14,169 @@ from modules.functions import   cross_entropy_loss # sigmoid_cross_entropy_loss
 sys.path.append('..')
 from modules.utils import accuracy, Averagvalue
 
-def train(epoch,
-          model,
-          optimizer, 
-          train_sampler, 
-          train_loader,
-          scheduler, 
-          args,
-          save_dir):
+class Trainer(object):
+    def __init__(self, args, model, train_sampler, train_loader, val_loader=None):
+        super(Trainer, self).__init__()
+        self.model=model
 
-    # Set the epoch for the train sampler
-    train_sampler.set_epoch(epoch)
+        self.train_loader = train_loader
+        self.train_sampler = train_sampler
+        self.val_loader = val_loader
 
-    # Initialize metrics for tracking train loss and accuracy
-    losses = Averagvalue() # Average loss value across batches
-    epoch_loss = []  # List to store the loss for each epoch
-    val_losses = Averagvalue()  # Average validation loss value across batches
-    epoch_val_loss = []  # List to store the validation loss for each epoch
-    counter = 0  # Counter to track iterations within an epoch
+        self.n_train = len(train_loader)
+        if val_loader is not None:
+            self.n_val = len(val_loader)
+        else:
+            self.n_val=0
 
-    # Initialize a progress bar using tqdm
-    with tqdm(total=args.n_train, desc=f'Epoch {epoch + 1}/{args.max_epoch}', unit='img') as pbar:
-        # Iterate over batches in the train loader
-        for batch in train_loader:
+        self.n_dataset = self.n_train+self.n_val
+        self.global_step = 0
 
-            # Get data and label from the batch
-            data, label, image_name = batch['data'], batch['label'], batch['id'][0]
+        self.batch_size = args.batch_size
 
-            # Move data and label to the GPU if available
-            if args.cuda:
+        #losses
+        self.train_loss = []
+        self.train_loss_detail = []
+
+        self.val_loss = []
+        self.val_loss_detail = []
+
+        self.max_epoch = args.max_epoch
+    
+
+        self.use_cuda = torch.cuda.is_available()
+
+        # training args
+        self.itersize = args.itersize
+
+        #tune lr
+        tuned_lrs = tune_lrs(self.model,args.lr, args.weight_decay)
+
+        self.optimizer = torch.optim.SGD(tuned_lrs, lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
+
+        self.scheduler = lr_scheduler.StepLR(self.optimizer, step_size=args.stepsize, gamma=args.gamma)
+
+        self.writer = SummaryWriter(args.log_dir) if args.verbose else None
+
+
+    def train(self, epoch, save_dir):
+
+        # Set the epoch for the train sampler
+        self.train_sampler.set_epoch(epoch)
+
+        # Initialize metrics for tracking train loss and accuracy
+        losses = Averagvalue() # Average loss value across batches
+        epoch_loss = []  # List to store the loss for each epoch
+        val_losses = Averagvalue()  # Average validation loss value across batches
+        epoch_val_loss = []  # List to store the validation loss for each epoch
+        counter = 0  # Counter to track iterations within an epoch
+
+        # Initialize a progress bar using tqdm
+        with tqdm(total=self.n_train, desc=f'Epoch {epoch + 1}/{self.max_epoch}', unit='img') as pbar:
+            # Iterate over batches in the train loader
+            for batch in self.train_loader:
+
+                # Get data and label from the batch
+                data, label, image_name = batch['data'], batch['label'], batch['id'][0]
+
+                # Move data and label to the GPU if available
+                if self.use_cuda:
+                    for key in data:
+                        data[key] = data[key].cuda()
+                    label = label.cuda()
+
+                image = data['image']
+
+                # Perform forward pass and calculate loss
+                outputs = self.model(data)
+
+                ## loss
+                if self.use_cuda:
+                    loss = torch.zeros(1).cuda()  # Initialize loss as zero on GPU
+                else:
+                    loss = torch.zeros(1)  # Initialize loss as zero on CPU
+                for o in outputs:
+                    loss = loss + cross_entropy_loss(o, label)  # Compute the cross-entropy loss for each output
+                counter += 1
+                loss = loss / self.itersize  # Average the loss across iterations
+                loss.backward()  # Backpropagate the loss
+
+
+                # SGD step
+                if counter == self.itersize:
+                    self.optimizer.step()  # Update model parameters using the optimizer
+                    self.optimizer.zero_grad()  # Reset gradients
+                    counter = 0
+                    
+                    # Adjust learning rate
+                    self.scheduler.step()
+                    self.global_step += 1
+
+
+                # Measure accuracy and record loss
+                losses.update(loss.item(), image.size(0))  # Update the average loss value
+                epoch_loss.append(loss.item())  # Append the loss to the list for the current epoch
+
+                # Update the progress bar with relevant information
+                pbar.set_postfix(**{'loss (batch)': loss.item()})  # Update the progress bar with the current batch loss
+                pbar.update(image.shape[0])  # Move the progress bar forward by the size of the current batch
+
+                if (self.global_step >0) and (self.global_step % 500 ==0): #(self.n_dataset // (10 * self.batch_size)) == 0:
+                        ## logging
+                        for tag, value in self.model.named_parameters():
+                            tag = tag.replace('.', '/')
+                            if self.writer is not None:
+                                self.writer.add_histogram('weights/' + tag, value.data.cpu().numpy(), self.global_step)
+                                self.writer.add_histogram('grads/' + tag, value.grad.data.cpu().numpy(), self.global_step)
+
+                        if self.writer is not None:
+                            self.writer.add_images('images', image, self.global_step)
+                            self.writer.add_images('masks/true', label, self.global_step)
+                            self.writer.add_images('masks/pred', outputs[-1] > 0.5, self.global_step)
+
+                        outputs.append(label)
+                        outputs.append(image)
+
+                        dev_checkpoint(save_dir=join(save_dir, f'training-epoch-{epoch+1}-record'),
+                                    i=self.global_step, epoch=epoch, image_name=image_name, outputs= outputs)
+
+            save_state(self.model, self.optimizer, epoch, save_path=join(save_dir, f'checkpoint_epoch{epoch+1}.pth'))
+            if self.writer is not None:
+                self.writer.add_scalar('Loss_avg', losses.avg, epoch+1)
+            # Update the training loss and accuracy for the current epoch
+            self.train_loss.append(losses.avg)
+            self.train_loss_detail += epoch_loss
+            if self.writer is not None:
+                if val_losses.count>0:
+                    self.writer.add_scalar('Val_Loss_avg', val_losses.avg, epoch+1)
+                self.writer.add_scalar('learning_rate', self.optimizer.param_groups[0]['lr'], self.global_step)
+
+
+    def test(self, epoch, dev_loader, save_dir):
+        print("Running test ========= >")
+        self.model.eval()
+        for idx, batch in enumerate(dev_loader):
+
+            data, label, image_name= batch['data'], batch['label'], batch['id'][0]
+
+            if self.use_cuda:
                 for key in data:
                     data[key] = data[key].cuda()
                 label = label.cuda()
 
-            image = data['image']
+            _, _, H, W = data['image'].shape
 
-            # Perform forward pass and calculate loss
-            outputs = model(data)
+            if torch.cuda.is_available():
+                for key in data:
+                    data[key]=data[key].cuda()
+                label = label.cuda()
 
-            ## loss
-            if args.cuda:
-                loss = torch.zeros(1).cuda()  # Initialize loss as zero on GPU
-            else:
-                loss = torch.zeros(1)  # Initialize loss as zero on CPU
-            for o in outputs:
-                loss = loss + cross_entropy_loss(o, label)  # Compute the cross-entropy loss for each output
-            counter += 1
-            loss = loss / args.itersize  # Average the loss across iterations
-            loss.backward()  # Backpropagate the loss
+            with torch.no_grad():
+                outputs = self.model(data)
 
-
-            # SGD step
-            if counter == args.itersize:
-                optimizer.step()  # Update model parameters using the optimizer
-                optimizer.zero_grad()  # Reset gradients
-                counter = 0
-                
-                # Adjust learning rate
-                scheduler.step()
-                args.global_step += 1
-
-
-            # Measure accuracy and record loss
-            losses.update(loss.item(), image.size(0))  # Update the average loss value
-            epoch_loss.append(loss.item())  # Append the loss to the list for the current epoch
-
-            # Update the progress bar with relevant information
-            pbar.set_postfix(**{'loss (batch)': loss.item()})  # Update the progress bar with the current batch loss
-            pbar.update(image.shape[0])  # Move the progress bar forward by the size of the current batch
-
-            if (args.global_step >0) and (args.global_step % 500 ==0): #(self.n_dataset // (10 * self.batch_size)) == 0:
-                    ## logging
-                    for tag, value in model.named_parameters():
-                        tag = tag.replace('.', '/')
-                        if args.writer is not None:
-                            args.writer.add_histogram('weights/' + tag, value.data.cpu().numpy(), args.global_step)
-                            args.writer.add_histogram('grads/' + tag, value.grad.data.cpu().numpy(), args.global_step)
-
-                    if args.writer is not None:
-                        args.writer.add_images('images', image, args.global_step)
-                        args.writer.add_images('masks/true', label, args.global_step)
-                        args.writer.add_images('masks/pred', outputs[-1] > 0.5, args.global_step)
-
-                    outputs.append(label)
-                    outputs.append(image)
-
-                    dev_checkpoint(save_dir=join(save_dir, f'training-epoch-{epoch+1}-record'),
-                                i=args.global_step, epoch=epoch, image_name=image_name, outputs= outputs)
-
-        save_state(model, optimizer, epoch, save_path=join(save_dir, f'checkpoint_epoch{epoch+1}.pth'))
-        if args.writer is not None:
-            args.writer.add_scalar('Loss_avg', losses.avg, epoch+1)
-        # Update the training loss and accuracy for the current epoch
-        args.train_loss.append(losses.avg)
-        args.train_loss_detail += epoch_loss
-        if args.writer is not None:
-            if val_losses.count>0:
-                args.writer.add_scalar('Val_Loss_avg', val_losses.avg, epoch+1)
-            args.writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], args.global_step)
-
-
-def test(epoch,
-          model,
-          dev_loader,
-          args,
-          save_dir):
-    print("Running test ========= >")
-    model.eval()
-    for idx, batch in enumerate(dev_loader):
-
-        data, label, image_name= batch['data'], batch['label'], batch['id'][0]
-
-        if args.cuda:
-            for key in data:
-                data[key] = data[key].cuda()
-            label = label.cuda()
-
-        _, _, H, W = data['image'].shape
-
-        if torch.cuda.is_available():
-            for key in data:
-                data[key]=data[key].cuda()
-            label = label.cuda()
-
-        with torch.no_grad():
-            outputs = model(data)
-
-        outputs.append(1-outputs[-1])
-        outputs.append(label)
-        dev_checkpoint(save_dir, -1, epoch, image_name, outputs)
-
+            outputs.append(1-outputs[-1])
+            outputs.append(label)
+            dev_checkpoint(save_dir, -1, epoch, image_name, outputs)
 
 def save_state(model, optimizer, epoch, save_path='checkpoint.pth'):
         torch.save({
@@ -183,3 +218,48 @@ def tensor2image(image):
             #(torch.squeeze(o.detach()).cpu().numpy()*255).astype(np.uint8, copy=False)
             return result
 
+##========================== adjusting lrs
+
+def tune_lrs(model, lr, weight_decay):
+
+    bias_params= [param for name,param in list(model.named_parameters()) if name.find('bias')!=-1]
+    weight_params= [param for name,param in list(model.named_parameters()) if name.find('weight')!=-1]
+
+    if len(weight_params)==19:
+        down1_4_weights , down1_4_bias  = weight_params[0:10]  , bias_params[0:10]
+        down5_weights   , down5_bias    = weight_params[10:13] , bias_params[10:13]
+        up1_5_weights    , up1_5_bias     = weight_params[13:18] , bias_params[13:18]
+        fuse_weights , fuse_bias =weight_params[-1] , bias_params[-1]
+        
+        tuned_lrs=[
+        {'params': down1_4_weights, 'lr': lr*1    , 'weight_decay': weight_decay},
+        {'params': down1_4_bias,    'lr': lr*2    , 'weight_decay': 0.},
+        {'params': down5_weights,   'lr': lr*100  , 'weight_decay': weight_decay},
+        {'params': down5_bias,      'lr': lr*200  , 'weight_upecay': 0.},
+        {'params': up1_5_weights,    'lr': lr*0.01 , 'weight_decay': weight_decay},
+        {'params': up1_5_bias,       'lr': lr*0.02 , 'weight_decay': 0.},
+        {'params': fuse_weights,    'lr': lr*0.001, 'weight_decay': weight_decay},
+        {'params': fuse_bias ,      'lr': lr*0.002, 'weight_decay': 0.},
+        ]
+
+    elif len(weight_params)==32: #bn
+        down1_4_weights , down1_4_bias  = weight_params[0:20]  , bias_params[0:20]
+        down5_weights   , down5_bias    = weight_params[20:26] , bias_params[20:26]
+        up1_5_weights    , up1_5_bias     = weight_params[26:31] , bias_params[26:31]
+        fuse_weights , fuse_bias =weight_params[-1] , bias_params[-1]
+        
+        tuned_lrs=[
+        {'params': down1_4_weights, 'lr': lr*1    , 'weight_decay': weight_decay},
+        {'params': down1_4_bias,    'lr': lr*2    , 'weight_decay': 0.},
+        {'params': down5_weights,   'lr': lr*100  , 'weight_decay': weight_decay},
+        {'params': down5_bias,      'lr': lr*200  , 'weight_upecay': 0.},
+        {'params': up1_5_weights,    'lr': lr*0.01 , 'weight_decay': weight_decay},
+        {'params': up1_5_bias,       'lr': lr*0.02 , 'weight_decay': 0.},
+        {'params': fuse_weights,    'lr': lr*0.001, 'weight_decay': weight_decay},
+        {'params': fuse_bias ,      'lr': lr*0.002, 'weight_decay': 0.},
+        ]
+    else:
+        print('Warning in tune_lrs')
+        return model.parameters()
+
+    return  tuned_lrs

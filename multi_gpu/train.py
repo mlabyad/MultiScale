@@ -9,6 +9,7 @@ import torch.distributed as dist
 from os.path import join, isdir
 from msnet import msNet
 import modules.datasets as datasets
+from modules.trainer import Trainer
 import modules.trainer as trainer
 import modules.optimizers as optimizers
 from pathlib import Path
@@ -123,9 +124,6 @@ def main():
     # Create log directory and set checkpoint format
     os.makedirs(args.log_dir, exist_ok=True)
 
-    # Create a SummaryWriter for logging if verbose is True
-    args.log_writer = SummaryWriter(args.log_dir) if args.verbose else None
-
     # Initialize resume_from_epoch to 0
     args.resume_from_epoch = 0
 
@@ -146,35 +144,32 @@ def main():
         scaler = GradScaler()
     args.grad_scaler = scaler
 
-    # Get optimizer, preconditioner, and lr_schedules
-    optimizer, preconditioner, lr_schedules = optimizers.get_optimizer(model, args)
-
-    # Load model, optimizer, preconditioner, and schedulers from checkpoint if resuming from a previous epoch
-    if args.resume_from_epoch > 0:
-        # Get the file path of the checkpoint for the specified epoch
-        filepath = args.checkpoint_format.format(epoch=args.resume_from_epoch)
+    # # Load model, optimizer, preconditioner, and schedulers from checkpoint if resuming from a previous epoch
+    # if args.resume_from_epoch > 0:
+    #     # Get the file path of the checkpoint for the specified epoch
+    #     filepath = args.checkpoint_format.format(epoch=args.resume_from_epoch)
         
-        # Define the mapping for loading the checkpoint on the appropriate device
-        map_location = {'cuda:0': 'cuda:{}'.format(args.local_rank)}
+    #     # Define the mapping for loading the checkpoint on the appropriate device
+    #     map_location = {'cuda:0': 'cuda:{}'.format(args.local_rank)}
         
-        # Load the checkpoint from the specified file path
-        checkpoint = torch.load(filepath, map_location=map_location)
+    #     # Load the checkpoint from the specified file path
+    #     checkpoint = torch.load(filepath, map_location=map_location)
         
-        # Load the model's state dictionary from the checkpoint
-        model.module.load_state_dict(checkpoint['model'])
+    #     # Load the model's state dictionary from the checkpoint
+    #     model.module.load_state_dict(checkpoint['model'])
         
-        # Load the optimizer's state dictionary from the checkpoint
-        optimizer.load_state_dict(checkpoint['optimizer'])
+    #     # Load the optimizer's state dictionary from the checkpoint
+    #     optimizer.load_state_dict(checkpoint['optimizer'])
         
-        # Load schedulers' state dictionaries if the checkpoint contains a list of schedulers
-        if isinstance(checkpoint['schedulers'], list):
-            for sched, state in zip(lr_schedules, checkpoint['schedulers']):
-                sched.load_state_dict(state)
+    #     # Load schedulers' state dictionaries if the checkpoint contains a list of schedulers
+    #     if isinstance(checkpoint['schedulers'], list):
+    #         for sched, state in zip(lr_schedules, checkpoint['schedulers']):
+    #             sched.load_state_dict(state)
         
-        # Load preconditioner's state dictionary if the checkpoint contains a preconditioner and preconditioner is not None
-        if (checkpoint['preconditioner'] is not None and 
-                preconditioner is not None):
-            preconditioner.load_state_dict(checkpoint['preconditioner'])
+    #     # Load preconditioner's state dictionary if the checkpoint contains a preconditioner and preconditioner is not None
+    #     if (checkpoint['preconditioner'] is not None and 
+    #             preconditioner is not None):
+    #         preconditioner.load_state_dict(checkpoint['preconditioner'])
 
     # Start time
     start = time.time()
@@ -183,21 +178,21 @@ def main():
     args.global_step = 0
     args.train_loss = []
     args.train_loss_detail = []
-    args.writer = SummaryWriter(args.log_dir) if args.verbose else None
     args.max_epoch = 1
     args.start_epoch = 0
     args.n_train = len(train_loader)
+    trainer = Trainer(args, model, train_sampler=train_sampler, train_loader=train_loader)
     for epoch in range(args.start_epoch, args.max_epoch):
         ## initial log (optional:sample36)
         if (epoch == 0) and (args.devlist is not None):
             print("Performing initial testing...")
-            trainer.test(epoch, model, dev_loader, args, save_dir = join(args.tmp, 'testing-record-0-initial'))
+            trainer.test(dev_loader=dev_loader,save_dir = join(args.tmp, 'testing-record-0-initial'), epoch=epoch)
         # Perform training step
-        trainer.train(epoch, model, optimizer, train_sampler, train_loader, lr_schedules, args, save_dir = args.tmp)
+        trainer.train(save_dir = args.tmp, epoch=epoch)
         
         # Evaluate model on validation set
         if args.devlist is not None:
-            trainer.test(epoch, model, dev_loader, args, save_dir = join(args.tmp, f'testing-record-epoch-{epoch+1}'))
+            trainer.test(dev_loader=dev_loader,save_dir = join(args.tmp, f'testing-record-epoch-{epoch+1}'), epoch=epoch)
 
     # Print total training time if verbose is True
     if args.verbose:
