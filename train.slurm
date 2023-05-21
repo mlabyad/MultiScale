@@ -29,7 +29,6 @@
 #SBATCH -n 1               # Total # of mpi tasks (should be 1 for serial)
 #SBATCH -t 12:00:00        # Run time (hh:mm:ss)
 #SBATCH --mail-type=all    # Send email at begin and end of job
-#SBATCH -A myproject       # Project/Allocation name (req'd if you have more than 1)
 #SBATCH --mail-user=malb23@lehigh.edu
 
 # Any other commands must follow all #SBATCH directives...
