@@ -116,7 +116,7 @@ def main():
         if args.devlist is not None:
             trainer.dev(dev_loader=dev_loader, save_dir = join(args.tmp, f'testing-record-epoch-{epoch+1}'), epoch=epoch)
 
-    # Print total training time if verbose is True
+    # Print total training time
     if args.verbose:
         print('\nTraining time: {}'.format(datetime.timedelta(seconds=time.time() - start)))
 

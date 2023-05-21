@@ -3,14 +3,29 @@ import torch
 from tqdm import tqdm
 import os
 import numpy as np
+#from PIL import Image
+#import time
 import torch.nn as nn
+
+#import logging
 import torch
 from tqdm import tqdm
 from torch.optim import lr_scheduler
+#import torchvision
 from torch.utils.tensorboard import SummaryWriter
 import cv2
+
+
 from os.path import join, split, isdir, isfile, splitext
 from modules.functions import   cross_entropy_loss
+
+#from modules.models_aux import  weights_init #, convert_vgg 
+from modules.functions import   cross_entropy_loss # sigmoid_cross_entropy_loss
+from modules.utils import Averagvalue #, save_checkpoint
+
+
+
+#from tensorboardX import SummaryWriter
 
 sys.path.append('..')
 from modules.utils import Averagvalue
@@ -24,9 +39,6 @@ class Network(object):
         # Wrap the model with DistributedDataParallel for distributed training
         self.model = torch.nn.parallel.DistributedDataParallel(self.model, device_ids=[args.local_rank])
 
-        # Set the device (CPU or CUDA) for the model
-        device = 'cpu' if not args.cuda else 'cuda' 
-        self.model.to(device)
 
         if args.weights_init_on:
             self.model.apply(weights_init)
@@ -38,6 +50,10 @@ class Network(object):
 
         if args.resume_path is not None:
             resume(model=model, resume_path=args.resume_path)
+
+        # Set the device (CPU or CUDA) for the model
+        device = 'cpu' if not args.cuda else 'cuda' 
+        self.model.to(device)
 
 
 class Trainer(object):
@@ -104,6 +120,7 @@ class Trainer(object):
                 data, label, image_name= batch['data'], batch['label'], batch['id'][0]
                 
                 
+
                 if torch.cuda.is_available():
                     for key in data:
                         data[key]=data[key].cuda()
