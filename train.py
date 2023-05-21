@@ -21,7 +21,7 @@ def parse_args():
     parser.add_argument('--trainlist', type=str, default='./data/train.lst')
     parser.add_argument('--devlist', type=str, default='./data/dev.lst')
     parser.add_argument('--tmp', type=str, default='../tmp/tag')
-    parser.add_argument('--log_dir', type=str, default='../logs/tag')
+    parser.add_argument('--log-dir', type=str, default='../logs/tag')
     parser.add_argument('--seed', type=int, default=42, metavar='S', help='random seed (default: 42)')
 
     # Training settings
@@ -35,13 +35,13 @@ def parse_args():
     parser.add_argument('--momentum', type=float, default=0.9, metavar='M', help='SGD momentum (default: 0.9)')
     parser.add_argument('--stepsize', type=int, default=1e4, help='epochs between checkpoints')
     parser.add_argument('--gamma', type=int, default=0.1, help='epochs between checkpoints')
-    parser.add_argument('--weight_decay', type=int, default=0.0002)
+    parser.add_argument('--weight-decay', type=int, default=0.0002)
     parser.add_argument('--itersize', type=int, default=10)
-    parser.add_argument('--max_epoch', type=int, default=1)
-    parser.add_argument('--start_epoch', type=int, default=0)
-    parser.add_argument('--start_epoch', type=int, default=0)
-    parser.add_argument('--resume_path', type=str, default=None)
-    parser.add_argument('--weights_init_on', type=bool, default=False)
+    parser.add_argument('--max-epoch', type=int, default=1)
+    parser.add_argument('--start-epoch', type=int, default=0)
+    parser.add_argument('--start-epoch', type=int, default=0)
+    parser.add_argument('--resume-path', type=str, default=None)
+    parser.add_argument('--weights-init-on', type=bool, default=False)
 
     # KFAC Parameters
     parser.add_argument('--backend', type=str, default='nccl', help='backend for distribute training (default: nccl)')
