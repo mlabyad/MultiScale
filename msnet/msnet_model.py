@@ -37,6 +37,7 @@ class msNet(nn.Module):
         self.fuse = OutConv(n_sides, uniform=True)
 
 
+
     def forward(self, data):
 
         x=data['image']

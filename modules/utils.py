@@ -30,3 +30,4 @@ class Averagvalue(object):
         self.avg = self.sum / self.count
 
 
+
