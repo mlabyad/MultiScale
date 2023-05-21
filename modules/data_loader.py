@@ -1,20 +1,13 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Apr 10 11:26:56 2020
-
-@author: yari
-"""
-
+import os
+import torch
 from torch.utils import data as D
 from os.path import join, splitext, basename #,split, abspath, splitext, split, isdir, isfile
 import numpy as np
+from modules.transforms import Fliplr, Rescale_byrate
+from torch.utils.data import DataLoader, ConcatDataset
 import cv2
 import os
-
 import pandas as pd
-
-
-
 
 
 class SnowData(D.Dataset):
@@ -67,7 +60,8 @@ class SnowData(D.Dataset):
             return {'data': data, 'label': ctour, 'id': data_id}
         else:    
             return {'data': data,  'id': data_id}            
-        
+
+
 def prepare_img(img):
         img=np.array(img, dtype=np.float32)
         #img=np.expand_dims(img,axis=2)
@@ -84,46 +78,39 @@ def prepare_ctour(ctour):
         return np.expand_dims(ctour,axis=0)
 
 
-
 def prepare_w(img):
         img=np.array(img, dtype=np.float32)
         img=np.expand_dims(img,axis=0)
         return img
 
 
-# def wt_scale(wt):
-#     return 255*(wt-np.min(wt))/(np.max(wt)-np.min(wt))
+def get_data(args):
+    ds=[SnowData(root=args.root,lst=args.trainlist),
+    SnowData(root=args.root,lst=args.trainlist, transform=Rescale_byrate(.75)),
+    SnowData(root=args.root,lst=args.trainlist,transform=Rescale_byrate(.5)),
+    SnowData(root=args.root,lst=args.trainlist,transform=Rescale_byrate(.25)),
+    SnowData(root=args.root,lst=args.trainlist, transform=Fliplr())
+    ]
+    train_dataset=ConcatDataset(ds)
 
-# def get_wt(im, wname, mode, level,scaleit=False):
-#     w=pywt.wavedec2(im,wname, mode=mode, level=level)
-#     if scaleit:
-#         wt={f'cA{level}': prepare_w(wt_scale(w[0]))}
-#         for i in range(1,level):
-#             wt.update({f'cH{i}': prepare_w(wt_scale(w[-i][0]))})
-#             wt.update({f'cV{i}': prepare_w(wt_scale(w[-i][1]))})
-#             wt.update({f'cD{i}': prepare_w(wt_scale(w[-i][2]))})
-#     else:
-#         wt={f'cA{level}': prepare_w(w[0])}
-#         for i in range(1,level):
-#             wt.update({f'cH{i}': prepare_w(w[-i][0])})
-#             wt.update({f'cV{i}': prepare_w(w[-i][1])})
-#             wt.update({f'cD{i}': prepare_w(w[-i][2])})
-#     return wt
+    test_dataset=SnowData(root=args.root,lst=args.devlist)
+    
+    return make_sampler_and_loader(args, train_dataset, test_dataset)
 
 
+def make_sampler_and_loader(args, train_dataset, val_dataset):
+    torch.set_num_threads(4)
+    kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 
-# enum ImreadModes
-# {
-#     IMREAD_UNCHANGED           = -1,
-#     IMREAD_GRAYSCALE           = 0,
-#     IMREAD_COLOR               = 1,
-#     IMREAD_ANYDEPTH            = 2,
-#     IMREAD_ANYCOLOR            = 4,
-#     IMREAD_LOAD_GDAL           = 8,
-#     IMREAD_REDUCED_GRAYSCALE_2 = 16,
-#     IMREAD_REDUCED_COLOR_2     = 17,
-#     IMREAD_REDUCED_GRAYSCALE_4 = 32,
-#     IMREAD_REDUCED_COLOR_4     = 33,
-#     IMREAD_REDUCED_GRAYSCALE_8 = 64,
-#     IMREAD_REDUCED_COLOR_8     = 65,
-#     IMREAD_IGNORE_ORIENTATION  = 128,}
+    train_sampler = torch.utils.data.distributed.DistributedSampler(
+            train_dataset, num_replicas=args.backend.size(), rank=args.backend.rank())
+    train_loader = torch.utils.data.DataLoader(
+            train_dataset, batch_size=args.batch_size * args.batches_per_allreduce,
+            sampler=train_sampler, **kwargs)
+    val_sampler = torch.utils.data.distributed.DistributedSampler(
+            val_dataset, num_replicas=args.backend.size(), rank=args.backend.rank())
+    val_loader = torch.utils.data.DataLoader(
+            val_dataset, batch_size=args.val_batch_size,
+            sampler=val_sampler, **kwargs)
+
+    return train_sampler, train_loader, val_sampler, val_loader

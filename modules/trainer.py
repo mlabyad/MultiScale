@@ -1,30 +1,19 @@
+import sys
+import torch
+from tqdm import tqdm
 import os
 import numpy as np
-#from PIL import Image
-#import time
-import torch
-
-#import logging
-from tqdm import tqdm
-from torch.utils.tensorboard import SummaryWriter
-#from torch.utils.data import DataLoader, random_split
 import torch.nn as nn
-
+import torch
+from tqdm import tqdm
 from torch.optim import lr_scheduler
-#import torchvision
+from torch.utils.tensorboard import SummaryWriter
 import cv2
-
-
 from os.path import join, split, isdir, isfile, splitext
-
-#from modules.models_aux import  weights_init #, convert_vgg 
 from modules.functions import   cross_entropy_loss # sigmoid_cross_entropy_loss
-from modules.utils import Averagvalue #, save_checkpoint
 
-
-
-#from tensorboardX import SummaryWriter
-
+sys.path.append('..')
+from modules.utils import accuracy, Averagvalue
 
 
 class Network(object):
@@ -32,44 +21,41 @@ class Network(object):
         super(Network, self).__init__()
         # a necessary class for initialization and pretraining, there are precision issues when import model directly
 
-        if args.multi_gpu:
-            self.model = nn.DataParallel(model)
-        else:
-            self.model = model
+        self.model = model
+
         if args.weights_init_on:
             self.model.apply(weights_init)
-
-
-        # if args.pretrained_path is not None:
-        #     self.model.apply(weights_init)
-        #     vgg_pretrain(model=model, pretrained_path=args.pretrained_path)
 
         if args.resume_path is not None:
             resume(model=model, resume_path=args.resume_path)
 
-        if torch.cuda.is_available():
-            self.model.cuda()
+        # Set the device (CPU or CUDA) for the model
+        device = 'cpu' if not args.cuda else 'cuda' 
+        self.model.to(device)
+
+        # Wrap the model with DistributedDataParallel for distributed training
+        self.model = torch.nn.parallel.DistributedDataParallel(self.model, device_ids=[args.local_rank])
 
 
 class Trainer(object):
-    def __init__(self, args, net, train_loader, val_loader=None):
+    def __init__(self, args, net, train_sampler, train_loader, val_loader=None):
         super(Trainer, self).__init__()
-
-        self.model=net.model
+        self.model = net.model
 
         self.train_loader = train_loader
+        self.train_sampler = train_sampler
         self.val_loader = val_loader
 
-        self.n_train=len(train_loader)
+        self.n_train = len(train_loader)
         if val_loader is not None:
-            self.n_val=len(val_loader)
+            self.n_val = len(val_loader)
         else:
-            self.n_val=0
+            self.n_val = 0
 
-        self.n_dataset= self.n_train+self.n_val
+        self.n_dataset = self.n_train+self.n_val
         self.global_step = 0
 
-        self.batch_size=args.batch_size
+        self.batch_size = args.batch_size
 
         #losses
         self.train_loss = []
@@ -78,151 +64,150 @@ class Trainer(object):
         self.val_loss = []
         self.val_loss_detail = []
 
-        self.max_epoch=args.max_epoch
+        self.max_epoch = args.max_epoch
     
 
-        self.use_cuda=torch.cuda.is_available()
+        self.use_cuda = torch.cuda.is_available()
 
         # training args
-        self.itersize=args.itersize
+        self.itersize = args.itersize
 
         #tune lr
-        tuned_lrs=tune_lrs(self.model,args.lr, args.weight_decay)
+        tuned_lrs = tune_lrs(self.model,args.lr, args.weight_decay)
 
         self.optimizer = torch.optim.SGD(tuned_lrs, lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
 
-
         self.scheduler = lr_scheduler.StepLR(self.optimizer, step_size=args.stepsize, gamma=args.gamma)
 
-        self.writer = SummaryWriter(args.log_dir)
+        self.writer = SummaryWriter(args.log_dir) if args.verbose else None
 
-def train(self, save_dir, epoch):
-    # Initialization
-    losses = Averagvalue()  # Average loss value across batches
-    epoch_loss = []  # List to store the loss for each epoch
-    val_losses = Averagvalue()  # Average validation loss value across batches
-    epoch_val_loss = []  # List to store the validation loss for each epoch
-    counter = 0  # Counter to track iterations within an epoch
-    
-    # Create a progress bar using tqdm
-    with tqdm(total=self.n_train, desc=f'Epoch {epoch + 1}/{self.max_epoch}', unit='img') as pbar:
-        # Iterate over batches in the train loader
-        for batch in self.train_loader:
-            data, label, image_name = batch['data'], batch['label'], batch['id'][0]
-            
-            # Move data and label to the GPU if available
-            if torch.cuda.is_available():
+
+    def train(self, epoch, save_dir):
+
+        # Set the epoch for the train sampler
+        self.train_sampler.set_epoch(epoch)
+
+        # Initialize metrics for tracking train loss and accuracy
+        losses = Averagvalue() # Average loss value across batches
+        epoch_loss = []  # List to store the loss for each epoch
+        val_losses = Averagvalue()  # Average validation loss value across batches
+        epoch_val_loss = []  # List to store the validation loss for each epoch
+        counter = 0  # Counter to track iterations within an epoch
+
+        # Initialize a progress bar using tqdm
+        with tqdm(total=self.n_train, desc=f'Epoch {epoch + 1}/{self.max_epoch}', unit='img') as pbar:
+            # Iterate over batches in the train loader
+            for batch in self.train_loader:
+
+                # Get data and label from the batch
+                data, label, image_name = batch['data'], batch['label'], batch['id'][0]
+
+                # Move data and label to the GPU if available
+                if self.use_cuda:
+                    for key in data:
+                        data[key] = data[key].cuda()
+                    label = label.cuda()
+
+                image = data['image']
+
+                # Perform forward pass and calculate loss
+                outputs = self.model(data)
+
+                ## loss
+                if self.use_cuda:
+                    loss = torch.zeros(1).cuda()  # Initialize loss as zero on GPU
+                else:
+                    loss = torch.zeros(1)  # Initialize loss as zero on CPU
+                for o in outputs:
+                    loss = loss + cross_entropy_loss(o, label)  # Compute the cross-entropy loss for each output
+                counter += 1
+                loss = loss / self.itersize  # Average the loss across iterations
+                loss.backward()  # Backpropagate the loss
+
+
+                # SGD step
+                if counter == self.itersize:
+                    self.optimizer.step()  # Update model parameters using the optimizer
+                    self.optimizer.zero_grad()  # Reset gradients
+                    counter = 0
+                    
+                    # Adjust learning rate
+                    self.scheduler.step()
+                    self.global_step += 1
+
+
+                # Measure accuracy and record loss
+                losses.update(loss.item(), image.size(0))  # Update the average loss value
+                epoch_loss.append(loss.item())  # Append the loss to the list for the current epoch
+
+                # Update the progress bar with relevant information
+                pbar.set_postfix(**{'loss (batch)': loss.item()})  # Update the progress bar with the current batch loss
+                pbar.update(image.shape[0])  # Move the progress bar forward by the size of the current batch
+
+                if (self.global_step >0) and (self.global_step % 500 ==0): #(self.n_dataset // (10 * self.batch_size)) == 0:
+                        ## logging
+                        for tag, value in self.model.named_parameters():
+                            tag = tag.replace('.', '/')
+                            if self.writer is not None:
+                                self.writer.add_histogram('weights/' + tag, value.data.cpu().numpy(), self.global_step)
+                                self.writer.add_histogram('grads/' + tag, value.grad.data.cpu().numpy(), self.global_step)
+
+                        if self.writer is not None:
+                            self.writer.add_images('images', image, self.global_step)
+                            self.writer.add_images('masks/true', label, self.global_step)
+                            self.writer.add_images('masks/pred', outputs[-1] > 0.5, self.global_step)
+
+                        outputs.append(label)
+                        outputs.append(image)
+
+                        dev_checkpoint(save_dir=join(save_dir, f'training-epoch-{epoch+1}-record'),
+                                    i=self.global_step, epoch=epoch, image_name=image_name, outputs= outputs)
+
+            save_state(self.model, self.optimizer, epoch, save_path=join(save_dir, f'checkpoint_epoch{epoch+1}.pth'))
+            if self.writer is not None:
+                self.writer.add_scalar('Loss_avg', losses.avg, epoch+1)
+            # Update the training loss and accuracy for the current epoch
+            self.train_loss.append(losses.avg)
+            self.train_loss_detail += epoch_loss
+            if self.writer is not None:
+                if val_losses.count>0:
+                    self.writer.add_scalar('Val_Loss_avg', val_losses.avg, epoch+1)
+                self.writer.add_scalar('learning_rate', self.optimizer.param_groups[0]['lr'], self.global_step)
+
+
+    def test(self, epoch, dev_loader, save_dir):
+        print("Running test ========= >")
+        self.model.eval()
+        for idx, batch in enumerate(dev_loader):
+
+            data, label, image_name= batch['data'], batch['label'], batch['id'][0]
+
+            if self.use_cuda:
                 for key in data:
                     data[key] = data[key].cuda()
                 label = label.cuda()
-                
-            image = data['image']
-            
-            ## forward
-            outputs = self.model(data)  # Perform forward pass
-            
-            ## loss
-            if self.use_cuda:
-                loss = torch.zeros(1).cuda()  # Initialize loss as zero on GPU
-            else:
-                loss = torch.zeros(1)  # Initialize loss as zero on CPU
-            
-            for o in outputs:
-                loss = loss + cross_entropy_loss(o, label)  # Compute the cross-entropy loss for each output
-            
-            counter += 1
-            loss = loss / self.itersize  # Average the loss across iterations
-            
-            loss.backward()  # Backpropagate the loss
-            
-            # SGD step
-            if counter == self.itersize:
-                self.optimizer.step()  # Update model parameters using the optimizer
-                self.optimizer.zero_grad()  # Reset gradients
-                counter = 0
-                
-                # Adjust learning rate
-                self.scheduler.step()
-                self.global_step += 1
-
-            # Measure accuracy and record loss
-            losses.update(loss.item(), image.size(0))  # Update the average loss value
-            epoch_loss.append(loss.item())  # Append the loss to the list for the current epoch
-
-            self.writer.add_scalar('Loss/train', loss.item(), self.global_step)  # Log the loss value
-            pbar.set_postfix(**{'loss (batch)': loss.item()})  # Update the progress bar with the current batch loss
-            pbar.update(image.shape[0])  # Move the progress bar forward by the size of the current batch
-
-
-            if (self.global_step >0) and (self.global_step % 500 ==0): #(self.n_dataset // (10 * self.batch_size)) == 0:
-                ## logging
-                for tag, value in self.model.named_parameters():
-                    tag = tag.replace('.', '/')
-                    self.writer.add_histogram('weights/' + tag, value.data.cpu().numpy(), self.global_step)
-                    self.writer.add_histogram('grads/' + tag, value.grad.data.cpu().numpy(), self.global_step)
-
-
-                self.writer.add_images('images', image, self.global_step)
-                self.writer.add_images('masks/true', label, self.global_step)
-                self.writer.add_images('masks/pred', outputs[-1] > 0.5, self.global_step)
-
-
-
-                outputs.append(label)
-                outputs.append(image)
-
-                dev_checkpoint(save_dir=join(save_dir, f'training-epoch-{epoch+1}-record'),
-                            i=self.global_step, epoch=epoch, image_name=image_name, outputs= outputs)
-
-
-        self.save_state(epoch, save_path=join(save_dir, f'checkpoint_epoch{epoch+1}.pth'))
-        self.writer.add_scalar('Loss_avg', losses.avg, epoch+1)
-        self.train_loss.append(losses.avg)
-        self.train_loss_detail += epoch_loss
-        if val_losses.count>0:
-            self.writer.add_scalar('Val_Loss_avg', val_losses.avg, epoch+1)
-        self.writer.add_scalar('learning_rate', self.optimizer.param_groups[0]['lr'], self.global_step)
-        
-
-    def dev(self,dev_loader, save_dir, epoch):
-        print("Running test ========= >")
-        self.model.eval()
-        if not isdir(save_dir):
-            os.makedirs(save_dir)
-        for idx, batch in enumerate(dev_loader):
-
-            #image,image_id= batch['image'] ,  batch['id'][0]
-            
-            data, label, image_name= batch['data'], batch['label'], batch['id'][0]
 
             _, _, H, W = data['image'].shape
-            
+
             if torch.cuda.is_available():
                 for key in data:
                     data[key]=data[key].cuda()
-
-            
+                label = label.cuda()
 
             with torch.no_grad():
-               outputs = self.model(data)
+                outputs = self.model(data)
 
             outputs.append(1-outputs[-1])
             outputs.append(label)
             dev_checkpoint(save_dir, -1, epoch, image_name, outputs)
-            
-            # result=tensor2image(results[-1])
-            # result_b=tensor2image(1-results[-1])
 
-            # cv2.imwrite(join(save_dir, f"{image_id}.png".replace('image','fuse')), result)
-            # cv2.imwrite(join(save_dir, f"{image_id}.jpg".replace('image','fuse')), result_b)
-
-
-    def save_state(self, epoch, save_path='checkpoint.pth'):
+def save_state(model, optimizer, epoch, save_path='checkpoint.pth'):
         torch.save({
                     'epoch': epoch,
-                    'state_dict': self.model.state_dict(),
-                    'optimizer': self.optimizer.state_dict()
+                    'state_dict': model.state_dict(),
+                    'optimizer': optimizer.state_dict()
                     }, save_path)
+
 
 ##========================== initial state
 
@@ -255,6 +240,28 @@ def resume(model, resume_path):
     else:
         print("=> no checkpoint found at '{}'".format(resume_path))
 
+##=========================== train_split func
+
+def dev_checkpoint(save_dir, i, epoch, image_name, outputs):
+    # display and logging
+    os.makedirs(save_dir, exist_ok=True)
+    outs=[]
+    for o in outputs:
+        outs.append(tensor2image(o))
+    if len(outs[-1].shape)==3:
+        outs[-1]=outs[-1][0,:,:] #if RGB, show one layer only
+    if i==-1:
+        output_name=f"{image_name}.jpg"
+    else:
+        output_name=f"global_step-{i}-{image_name}.jpg"
+    out=cv2.hconcat(outs) # if gray
+    cv2.imwrite(join(save_dir, output_name), out)
+
+def tensor2image(image):
+            result = torch.squeeze(image.detach()).cpu().numpy()
+            result = (result * 255).astype(np.uint8, copy=False)
+            #(torch.squeeze(o.detach()).cpu().numpy()*255).astype(np.uint8, copy=False)
+            return result
 
 ##========================== adjusting lrs
 
@@ -262,7 +269,6 @@ def tune_lrs(model, lr, weight_decay):
 
     bias_params= [param for name,param in list(model.named_parameters()) if name.find('bias')!=-1]
     weight_params= [param for name,param in list(model.named_parameters()) if name.find('weight')!=-1]
-
 
     if len(weight_params)==19:
         down1_4_weights , down1_4_bias  = weight_params[0:10]  , bias_params[0:10]
@@ -301,31 +307,4 @@ def tune_lrs(model, lr, weight_decay):
         print('Warning in tune_lrs')
         return model.parameters()
 
-    
     return  tuned_lrs
-
-
-##=========================== train_split func
-
-def dev_checkpoint(save_dir, i, epoch, image_name, outputs):
-    # display and logging
-    if not isdir(save_dir):
-        os.makedirs(save_dir)
-    outs=[]
-    for o in outputs:
-        outs.append(tensor2image(o))
-    if len(outs[-1].shape)==3:
-        outs[-1]=outs[-1][0,:,:] #if RGB, show one layer only
-    if i==-1:
-        output_name=f"{image_name}.jpg"
-    else:
-        output_name=f"global_step-{i}-{image_name}.jpg"
-    out=cv2.hconcat(outs) # if gray
-    cv2.imwrite(join(save_dir, output_name), out)
-
-def tensor2image(image):
-            result = torch.squeeze(image.detach()).cpu().numpy()
-            result = (result * 255).astype(np.uint8, copy=False)
-            #(torch.squeeze(o.detach()).cpu().numpy()*255).astype(np.uint8, copy=False)
-            return result
-
