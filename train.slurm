@@ -17,7 +17,7 @@
 
 mkdir -p sbatch_logs
 
-source $SCRATCH/anaconda3/bin/activate pytorch
+source /scratch1/99999/malb23/model/python-env1/bin/activate
 
 scontrol show hostnames $SLURM_NODELIST > /tmp/hostfile
 
