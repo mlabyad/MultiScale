@@ -17,6 +17,9 @@ import os
 import pandas as pd
 
 
+
+
+
 class SnowData(D.Dataset):
     """
     dataset from list
