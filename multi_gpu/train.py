@@ -101,6 +101,7 @@ def main():
     args.log_dir = Path(f'../logs/{tag}')
     args.itersize = 10
     args.max_epoch = 1
+    args.start_epoch = 0
     args.resume_path = None
 
     # Get data loaders for training and validation datasets
