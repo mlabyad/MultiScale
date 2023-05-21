@@ -68,7 +68,6 @@ class SnowData(D.Dataset):
         else:    
             return {'data': data,  'id': data_id}            
 
-
 def prepare_img(img):
         img=np.array(img, dtype=np.float32)
         #img=np.expand_dims(img,axis=2)
@@ -83,6 +82,7 @@ def prepare_ctour(ctour):
         #ctour=np.array(ctour, dtype=np.float32)
         ctour = (ctour > 0 ).astype(np.float32)
         return np.expand_dims(ctour,axis=0)
+
 
 
 def prepare_w(img):
