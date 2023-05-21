@@ -10,7 +10,7 @@ from torch.optim import lr_scheduler
 from torch.utils.tensorboard import SummaryWriter
 import cv2
 from os.path import join, split, isdir, isfile, splitext
-from modules.functions import   cross_entropy_loss # sigmoid_cross_entropy_loss
+from modules.functions import   cross_entropy_loss
 
 sys.path.append('..')
 from modules.utils import Averagvalue
@@ -30,6 +30,7 @@ class Network(object):
 
         if args.weights_init_on:
             self.model.apply(weights_init)
+
 
         # if args.pretrained_path is not None:
         #     self.model.apply(weights_init)
@@ -99,16 +100,16 @@ class Trainer(object):
         with tqdm(total=self.n_train, desc=f'Epoch {epoch + 1}/{self.max_epoch}', unit='img') as pbar:
             for batch in self.train_loader:
 
-                data, label, image_name = batch['data'], batch['label'], batch['id'][0]
+                data, label, image_name= batch['data'], batch['label'], batch['id'][0]
                 
-                
+
                 if torch.cuda.is_available():
                     for key in data:
-                        data[key] = data[key].cuda()
-                    label = label.cuda()
-
-                image = data['image']
-
+                        data[key]=data[key].cuda()
+                    label=label.cuda()
+                    
+                image=data['image']
+                
                 ## forward
                 outputs = self.model(data)
                 ## loss
