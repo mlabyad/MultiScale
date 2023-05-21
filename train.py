@@ -57,9 +57,9 @@ def get_args():
      return args
 
 
-def main():
+def main(args):
 
-    args = get_args()
+    
     if not isdir(args.tmp):
         os.makedirs(args.tmp)
 
@@ -99,4 +99,5 @@ def main():
             trainer.dev(dev_loader=dev_loader,save_dir = join(args.tmp, f'testing-record-epoch-{epoch+1}'), epoch=epoch)
         
 if __name__ == '__main__':
-    main()
+    args = get_args()
+    main(args)
